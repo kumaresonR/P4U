@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -l \"validate\\(\" /c/Users/kumar/OneDrive/Desktop/planext4u-backend/src/modules/*/  *.routes.ts)",
+      "Bash(grep -l \"validate\" /c/Users/kumar/OneDrive/Desktop/planext4u-backend/src/modules/*/**.routes.ts)",
+      "Bash(find:*)",
+      "Bash(grep -n \"String   @id$\\\\|String    @id$\\\\|String @id$\" /c/Users/kumar/OneDrive/Desktop/planext4u-backend/prisma/schema.prisma)",
+      "Bash(grep -n \"String.*@id$\" /c/Users/kumar/OneDrive/Desktop/planext4u-backend/prisma/schema.prisma)",
+      "Bash(node:*)",
+      "Bash(npx tsc:*)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(ls:*)",
+      "Bash(wc -l \"/c/Users/kumar/OneDrive/Desktop/P4U-New/p4u-admin-web/src/pages\"/*.jsx)",
+      "Bash(xargs wc:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -rn \"VITE_\" /c/Users/kumar/OneDrive/Desktop/planext4u/.env*)"
+    ]
+  }
+}

@@ -1,0 +1,259 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+
+    /* P4U Brand Colors: #011d33, #e8f6f6, #ffffff, #009999, #f89f03 */
+    --background: 195 18% 96%;
+    --foreground: 207 96% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 207 96% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 207 96% 10%;
+
+    --primary: 180 100% 30%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 180 33% 94%;
+    --secondary-foreground: 207 96% 10%;
+
+    --muted: 180 20% 94%;
+    --muted-foreground: 207 20% 46%;
+
+    --accent: 180 100% 95%;
+    --accent-foreground: 180 100% 30%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 37 95% 49%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 180 15% 88%;
+    --input: 180 15% 88%;
+    --ring: 180 100% 30%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 207 96% 10%;
+    --sidebar-foreground: 180 20% 80%;
+    --sidebar-primary: 180 100% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 207 60% 18%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 207 50% 18%;
+    --sidebar-ring: 180 100% 30%;
+    --sidebar-muted: 207 30% 28%;
+
+    --brand-dark: 207 96% 10%;
+    --brand-light: 180 33% 94%;
+    --brand-teal: 180 100% 30%;
+    --brand-amber: 37 95% 49%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(180, 100%, 30%), hsl(207, 96%, 10%));
+    --gradient-success: linear-gradient(135deg, hsl(152, 60%, 40%), hsl(170, 60%, 45%));
+    --gradient-warning: linear-gradient(135deg, hsl(37, 95%, 49%), hsl(25, 90%, 55%));
+    --gradient-info: linear-gradient(135deg, hsl(199, 89%, 48%), hsl(210, 80%, 55%));
+    --gradient-danger: linear-gradient(135deg, hsl(0, 72%, 51%), hsl(340, 70%, 50%));
+    --gradient-brand: linear-gradient(135deg, hsl(180, 100%, 30%), hsl(37, 95%, 49%));
+
+    --shadow-sm: 0 1px 2px 0 hsl(207 96% 10% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(207 96% 10% / 0.07), 0 2px 4px -2px hsl(207 96% 10% / 0.05);
+    --shadow-lg: 0 10px 15px -3px hsl(207 96% 10% / 0.08), 0 4px 6px -4px hsl(207 96% 10% / 0.04);
+    --shadow-xl: 0 20px 25px -5px hsl(207 96% 10% / 0.1), 0 8px 10px -6px hsl(207 96% 10% / 0.05);
+    --shadow-glass: 0 8px 32px 0 hsl(180 100% 30% / 0.08);
+  }
+
+  .dark {
+    --background: 207 96% 6%;
+    --foreground: 180 20% 98%;
+    --card: 207 96% 9%;
+    --card-foreground: 180 20% 98%;
+    --popover: 207 96% 9%;
+    --popover-foreground: 180 20% 98%;
+    --primary: 180 100% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 207 33% 17%;
+    --secondary-foreground: 180 20% 98%;
+    --muted: 207 33% 17%;
+    --muted-foreground: 180 15% 65%;
+    --accent: 207 33% 17%;
+    --accent-foreground: 180 20% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 180 20% 98%;
+    --border: 207 33% 17%;
+    --input: 207 33% 17%;
+    --ring: 180 100% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: var(--font-sans);
+    font-size: clamp(14px, 1vw + 10px, 18px);
+    line-height: 1.6;
+  }
+
+  /* Retina / High-DPI: scale up content on high-resolution displays */
+  /* Uses both -webkit-device-pixel-ratio and min-resolution for cross-browser support */
+  @media (-webkit-min-device-pixel-ratio: 1.25) and (min-width: 1200px),
+         (min-resolution: 120dpi) and (min-width: 1200px) {
+    html { zoom: 1.15; }
+  }
+
+  @media (-webkit-min-device-pixel-ratio: 1.5) and (min-width: 1200px),
+         (min-resolution: 144dpi) and (min-width: 1200px) {
+    html { zoom: 1.2; }
+  }
+
+  @media (-webkit-min-device-pixel-ratio: 2) and (min-width: 1200px),
+         (min-resolution: 192dpi) and (min-width: 1200px) {
+    html { zoom: 1.25; }
+    .stat-card { border-width: 0.5px; }
+  }
+
+  /* Ultra-wide / 4K displays */
+  @media (min-width: 2560px) {
+    html { zoom: 1.5; }
+  }
+
+  @media (min-width: 3840px) {
+    html { zoom: 2; }
+  }
+}
+
+/* =========================================================
+ * Capacitor Android Safe Area — Global Status Bar Fix
+ *
+ * With overlaysWebView: true the status bar overlays the
+ * WebView, so env(safe-area-inset-top) reports the real
+ * status-bar height. We push page-level sticky/fixed headers
+ * down by that amount automatically.
+ *
+ * NOTE: CustomerLayout's mobile header manages its own
+ * top padding via inline style (safe-area + 0.75rem).
+ * The .safe-area-top class opt-in is preferred for that
+ * header so it keeps its own base padding too.
+ * ========================================================= */
+header.sticky:not([data-no-safe-area]),
+div.sticky.safe-area-top,
+nav.sticky.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Fixed bottom navigation bars */
+nav.fixed {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+    box-shadow: var(--shadow-glass);
+  }
+
+  .gradient-primary { background: var(--gradient-primary); }
+  .gradient-success { background: var(--gradient-success); }
+  .gradient-warning { background: var(--gradient-warning); }
+  .gradient-info { background: var(--gradient-info); }
+  .gradient-danger { background: var(--gradient-danger); }
+  .gradient-brand { background: var(--gradient-brand); }
+
+  .brand-header {
+    background: hsl(var(--brand-dark));
+    color: white;
+  }
+
+  .brand-nav {
+    border-color: hsl(var(--brand-teal));
+  }
+
+  .stat-card {
+    @apply relative overflow-hidden rounded-xl p-4 lg:p-6 transition-all duration-300;
+    box-shadow: var(--shadow-md);
+  }
+
+  .stat-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+
+  .admin-table {
+    @apply w-full;
+  }
+
+  .admin-table th {
+    @apply px-3 lg:px-4 py-2.5 lg:py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider text-[11px] lg:text-xs;
+  }
+
+  .admin-table td {
+    @apply px-3 lg:px-4 py-3 lg:py-3.5 border-t border-border/50 text-xs lg:text-sm;
+  }
+
+  .admin-table tr:hover td {
+    @apply bg-accent/50;
+  }
+
+  .page-header {
+    @apply mb-5 lg:mb-8;
+  }
+
+  .page-title {
+    @apply text-xl lg:text-2xl xl:text-3xl font-bold tracking-tight;
+  }
+
+  .page-description {
+    @apply text-sm lg:text-base text-muted-foreground mt-1;
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .product-img-placeholder {
+    @apply bg-gradient-to-br from-secondary/60 to-secondary/20 flex items-center justify-center;
+  }
+}
+
+/* Hide Google reCAPTCHA badge */
+.grecaptcha-badge {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
