@@ -62,7 +62,7 @@ import PaymentReportPage from "./pages/reports/PaymentReportPage";
 import CustomerHomePage from "./pages/customer/CustomerHomePage";
 import CustomerLoginPage from "./pages/customer/CustomerLoginPage";
 import CustomerBrowsePage from "./pages/customer/CustomerBrowsePage";
-import CustomerVendorPage from "./pages/customer/CustomerVendorPage";
+// CustomerVendorPage hidden (mock data)
 import CustomerProductPage from "./pages/customer/CustomerProductPage";
 import CustomerCartPage from "./pages/customer/CustomerCartPage";
 import CustomerOrdersPage from "./pages/customer/CustomerOrdersPage";
@@ -93,18 +93,18 @@ import SocialFeedPage from "./pages/customer/SocialFeedPage";
 import SocialCreatePostPage from "./pages/customer/SocialCreatePostPage";
 import SocialProfilePage from "./pages/customer/SocialProfilePage";
 import SocialExplorePage from "./pages/customer/SocialExplorePage";
-import SocialReelsPage from "./pages/customer/SocialReelsPage";
+// SocialReelsPage hidden (mock data)
 import SocialStoryViewerPage from "./pages/customer/SocialStoryViewerPage";
 import SocialDMPage from "./pages/customer/SocialDMPage";
 import SocialNotificationsPage from "./pages/customer/SocialNotificationsPage";
 import SocialSettingsPage from "./pages/customer/SocialSettingsPage";
 import SocialCommentsPage from "./pages/customer/SocialCommentsPage";
-import SocialFollowersPage from "./pages/customer/SocialFollowersPage";
+// SocialFollowersPage hidden (mock data)
 import SocialEditProfilePage from "./pages/customer/SocialEditProfilePage";
 import SocialCreatorDashboardPage from "./pages/customer/SocialCreatorDashboardPage";
-import SocialLivePage from "./pages/customer/SocialLivePage";
-import SocialBroadcastPage from "./pages/customer/SocialBroadcastPage";
-import SocialShopPage from "./pages/customer/SocialShopPage";
+// SocialLivePage hidden (mock data)
+// SocialBroadcastPage hidden (mock data)
+// SocialShopPage hidden (mock data)
 import AdminSocialDashboardPage from "./pages/admin/AdminSocialDashboardPage";
 import PaymentPage from "./pages/customer/PaymentPage";
 import SocioDMChatPage from "./pages/customer/SocioDMChatPage";
@@ -301,7 +301,7 @@ const AppRoutes = () => {
         <Route path="/app/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/app/browse" element={<CustomerPage><CustomerBrowsePage /></CustomerPage>} />
         <Route path="/app/product/:id" element={<CustomerPage><CustomerProductPage /></CustomerPage>} />
-        <Route path="/app/vendor/:id" element={<CustomerPage><CustomerVendorPage /></CustomerPage>} />
+        {/* /app/vendor/:id hidden — CustomerVendorPage uses mock data */}
         <Route path="/app/cart" element={<CustomerPage><CustomerCartPage /></CustomerPage>} />
         <Route path="/app/payment" element={<CustomerPage><PaymentPage /></CustomerPage>} />
         <Route path="/app/orders" element={<CustomerPage><CustomerOrdersPage /></CustomerPage>} />
@@ -324,7 +324,7 @@ const AppRoutes = () => {
         <Route path="/app/social/create" element={<CustomerPage><SocialCreatePostPage /></CustomerPage>} />
         <Route path="/app/social/profile" element={<CustomerPage><SocialProfilePage /></CustomerPage>} />
         <Route path="/app/social/explore" element={<CustomerPage><SocialExplorePage /></CustomerPage>} />
-        <Route path="/app/social/reels" element={<CustomerPage><SocialReelsPage /></CustomerPage>} />
+        {/* /app/social/reels hidden — mock data */}
         <Route path="/app/social/stories/:userId" element={<CustomerPage><SocialStoryViewerPage /></CustomerPage>} />
         <Route path="/app/social/messages" element={<CustomerPage><SocialDMPage /></CustomerPage>} />
         <Route path="/app/social/messages/:recipientId" element={<CustomerPage><SocioDMChatPage /></CustomerPage>} />
@@ -332,13 +332,10 @@ const AppRoutes = () => {
         <Route path="/app/social/settings" element={<CustomerPage><SocialSettingsPage /></CustomerPage>} />
         <Route path="/app/social/@:username" element={<CustomerPage><SocialProfilePage /></CustomerPage>} />
         <Route path="/app/social/comments/:postId" element={<CustomerPage><SocialCommentsPage /></CustomerPage>} />
-        <Route path="/app/social/:username/followers" element={<CustomerPage><SocialFollowersPage /></CustomerPage>} />
-        <Route path="/app/social/:username/following" element={<CustomerPage><SocialFollowersPage /></CustomerPage>} />
+        {/* /app/social/:username/followers|following hidden — mock data */}
         <Route path="/app/social/edit-profile" element={<CustomerPage><SocialEditProfilePage /></CustomerPage>} />
         <Route path="/app/social/dashboard" element={<CustomerPage><SocialCreatorDashboardPage /></CustomerPage>} />
-        <Route path="/app/social/live" element={<CustomerPage><SocialLivePage /></CustomerPage>} />
-        <Route path="/app/social/channels" element={<CustomerPage><SocialBroadcastPage /></CustomerPage>} />
-        <Route path="/app/social/shop" element={<CustomerPage><SocialShopPage /></CustomerPage>} />
+        {/* /app/social/live, /channels, /shop hidden — mock data */}
 
         {/* Admin Social */}
         <Route path="/admin/social" element={<ProtectedPage><AdminSocialDashboardPage /></ProtectedPage>} />

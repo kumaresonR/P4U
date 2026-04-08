@@ -6,6 +6,7 @@ import { AuthRequest } from '../../types';
 import { prisma } from '../../config/database';
 import * as vendorSvc from '../vendors/vendors.service';
 import * as orderSvc from '../orders/orders.service';
+import * as productSvc from '../products/products.service';
 
 const router = Router();
 
@@ -18,8 +19,38 @@ router.get('/me', authenticate, isVendor, async (req: AuthRequest, res: Response
   try { sendSuccess(res, await vendorSvc.getVendor(req.user!.id)); } catch (e) { next(e); }
 });
 
+// alias: frontend calls /vendor/profile
+router.get('/profile', authenticate, isVendor, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await vendorSvc.getVendor(req.user!.id)); } catch (e) { next(e); }
+});
+
 router.patch('/me', authenticate, isVendor, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try { sendSuccess(res, await vendorSvc.updateVendor(req.user!.id, req.body)); } catch (e) { next(e); }
+});
+
+// ─── Vendor Dashboard ────────────────────────────────────────────────────────
+
+router.get('/dashboard', authenticate, isVendor, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await vendorSvc.getVendorDashboard(req.user!.id)); } catch (e) { next(e); }
+});
+
+// ─── Vendor Products ─────────────────────────────────────────────────────────
+
+router.get('/products', authenticate, isVendor, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    (req as any).query.vendor_id = req.user!.id;
+    const r = await productSvc.listProducts(req as any);
+    sendPaginated(res, r.data, r.total, r.page, r.limit);
+  } catch (e) { next(e); }
+});
+
+// ─── Vendor Settlements ───────────────────────────────────────────────────────
+
+router.get('/settlements', authenticate, isVendor, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const r = await orderSvc.getVendorSettlements(req.user!.id, req as any);
+    sendPaginated(res, r.data, r.total, r.page, r.limit);
+  } catch (e) { next(e); }
 });
 
 // ─── Vendor Registration ──────────────────────────────────────────────────────

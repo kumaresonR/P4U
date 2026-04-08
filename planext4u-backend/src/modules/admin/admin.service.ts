@@ -97,6 +97,70 @@ export const getPointsReport = async () => {
   return { total_points: total._sum.points, by_type: byType };
 };
 
+export const getVendorPerformanceReport = async (req: Request) => {
+  const { from, to } = req.query as Record<string, string>;
+  const where: Record<string, unknown> = { status: 'completed' };
+  if (from || to) {
+    where.created_at = {
+      ...(from ? { gte: new Date(from) } : {}),
+      ...(to   ? { lte: new Date(to)   } : {}),
+    };
+  }
+  const result = await prisma.order.groupBy({
+    by: ['vendor_id'],
+    where,
+    _sum: { total: true },
+    _count: { id: true },
+    orderBy: { _sum: { total: 'desc' } },
+  });
+  const vendorIds = result.map(r => r.vendor_id).filter(Boolean) as string[];
+  const vendors = await prisma.vendor.findMany({
+    where: { id: { in: vendorIds } },
+    select: { id: true, business_name: true, status: true },
+  });
+  const vendorMap = Object.fromEntries(vendors.map(v => [v.id, v]));
+  return result.map(r => ({ ...r, vendor: vendorMap[r.vendor_id ?? ''] ?? null }));
+};
+
+export const getSettlementsReport = async (req: Request) => {
+  const { from, to, status } = req.query as Record<string, string>;
+  const where: Record<string, unknown> = {};
+  if (status) where.settlement_status = status;
+  if (from || to) {
+    where.created_at = {
+      ...(from ? { gte: new Date(from) } : {}),
+      ...(to   ? { lte: new Date(to)   } : {}),
+    };
+  }
+  const settlements = await prisma.settlement.findMany({
+    where,
+    include: { vendor: { select: { business_name: true } } },
+    orderBy: { created_at: 'desc' },
+  });
+  return settlements;
+};
+
+export const getReferralsReport = async (req: Request) => {
+  const { from, to } = req.query as Record<string, string>;
+  const where: Record<string, unknown> = {};
+  if (from || to) {
+    where.created_at = {
+      ...(from ? { gte: new Date(from) } : {}),
+      ...(to   ? { lte: new Date(to)   } : {}),
+    };
+  }
+  const [total, recent] = await Promise.all([
+    prisma.customer.count({ where: { ...where, referral_code: { not: null } } }),
+    prisma.customer.findMany({
+      where: { ...where, referred_by: { not: null } },
+      select: { id: true, name: true, mobile: true, referred_by: true, created_at: true },
+      orderBy: { created_at: 'desc' },
+      take: 100,
+    }),
+  ]);
+  return { total_referrals: total, recent };
+};
+
 // ─── Banners ─────────────────────────────────────────────────────────────────
 
 export const getBanners = () => prisma.banner.findMany({ orderBy: { priority: 'asc' } });
@@ -328,6 +392,45 @@ export const deleteHomesCms = (id: string) =>
   prisma.homesCms.delete({ where: { id } });
 
 // ─── Notifications (admin to user) ───────────────────────────────────────────
+
+// ─── Points Transactions (admin list) ────────────────────────────────────────
+
+export const listPointsTransactions = async (req: Request) => {
+  const { page, limit, skip } = getPagination(req);
+  const { date_from, date_to, type } = req.query as Record<string, string>;
+  const where: Record<string, unknown> = {};
+  if (type) where.type = type;
+  if (date_from || date_to) {
+    where.created_at = {
+      ...(date_from ? { gte: new Date(date_from) } : {}),
+      ...(date_to   ? { lte: new Date(date_to)   } : {}),
+    };
+  }
+  const [data, total] = await Promise.all([
+    prisma.pointsTransaction.findMany({ where, skip, take: limit, orderBy: { created_at: 'desc' }, include: { customer: { select: { name: true, mobile: true } } } }),
+    prisma.pointsTransaction.count({ where }),
+  ]);
+  return { data, total, page, limit };
+};
+
+// ─── Referrals (admin list) ───────────────────────────────────────────────────
+
+export const listReferrals = async (req: Request) => {
+  const { page, limit, skip } = getPagination(req);
+  const { date_from, date_to } = req.query as Record<string, string>;
+  const where: Record<string, unknown> = { referred_by: { not: null } };
+  if (date_from || date_to) {
+    where.created_at = {
+      ...(date_from ? { gte: new Date(date_from) } : {}),
+      ...(date_to   ? { lte: new Date(date_to)   } : {}),
+    };
+  }
+  const [data, total] = await Promise.all([
+    prisma.customer.findMany({ where, skip, take: limit, orderBy: { created_at: 'desc' }, select: { id: true, name: true, mobile: true, email: true, referred_by: true, created_at: true } }),
+    prisma.customer.count({ where }),
+  ]);
+  return { data, total, page, limit };
+};
 
 export const adminSendToUser = async (customerId: string, title: string, body: string, data?: Record<string, string>) => {
   const { sendToUser } = await import('../notifications/notifications.service');

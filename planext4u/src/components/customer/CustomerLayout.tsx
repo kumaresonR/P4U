@@ -453,7 +453,8 @@ export function CustomerLayout({ children, hideNav, socialMode }: CustomerLayout
             { icon: Home, label: "Home", to: "/app/social", active: path === '/app/social' },
             { icon: Search, label: "Explore", to: "/app/social/explore", active: path.startsWith('/app/social/explore') },
             { icon: Plus, label: "Create", to: "/app/social/create", active: path.startsWith('/app/social/create'), isCenter: true },
-            { icon: Film, label: "Reels", to: "/app/social/reels", active: path.startsWith('/app/social/reels') },
+            // Reels hidden — mock data
+            { icon: Bell, label: "Notifs", to: "/app/social/notifications", active: path.startsWith('/app/social/notifications') },
             { icon: User, label: "Profile", to: "/app/social/profile", active: path.startsWith('/app/social/profile') },
           ];
           return (

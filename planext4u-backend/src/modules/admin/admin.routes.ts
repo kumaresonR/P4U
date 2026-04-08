@@ -17,10 +17,13 @@ const router = Router();
 router.get('/dashboard', authenticate, isAdmin, ctrl.dashboard);
 
 // Reports
-router.get('/reports/orders',    authenticate, isAdmin, ctrl.ordersReport);
-router.get('/reports/revenue',   authenticate, isAdmin, ctrl.revenueReport);
-router.get('/reports/customers', authenticate, isAdmin, ctrl.customersReport);
-router.get('/reports/points',    authenticate, isAdmin, ctrl.pointsReport);
+router.get('/reports/orders',             authenticate, isAdmin, ctrl.ordersReport);
+router.get('/reports/revenue',            authenticate, isAdmin, ctrl.revenueReport);
+router.get('/reports/customers',          authenticate, isAdmin, ctrl.customersReport);
+router.get('/reports/points',             authenticate, isAdmin, ctrl.pointsReport);
+router.get('/reports/vendor-performance', authenticate, isAdmin, ctrl.vendorPerformanceReport);
+router.get('/reports/settlements',        authenticate, isAdmin, ctrl.settlementsReport);
+router.get('/reports/referrals',          authenticate, isAdmin, ctrl.referralsReport);
 
 // Banners (public active, admin CRUD)
 router.get('/banners/active',    ctrl.getActiveBanners);
@@ -97,5 +100,11 @@ router.post('/notify/user',        authenticate, isAdmin, validate(sendToUserSch
 // Logs
 router.get('/activity-logs', authenticate, isAdmin, ctrl.getActivityLogs);
 router.get('/audit-logs',    authenticate, isAdmin, ctrl.getAuditLogs);
+
+// Points transactions (admin list)
+router.get('/points-transactions', authenticate, isAdmin, ctrl.listPointsTransactions);
+
+// Referrals (admin list)
+router.get('/referrals', authenticate, isAdmin, ctrl.listReferrals);
 
 export default router;

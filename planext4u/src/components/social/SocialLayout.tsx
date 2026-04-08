@@ -18,7 +18,7 @@ interface SocialLayoutProps {
 const NAV_ITEMS = [
   { label: "Home", icon: Home, path: "/app/social" },
   { label: "Explore", icon: Compass, path: "/app/social/explore" },
-  { label: "Reels", icon: Film, path: "/app/social/reels" },
+  // Reels hidden — mock data
   { label: "Messages", icon: MessageCircle, path: "/app/social/messages" },
   { label: "Notification", icon: Bell, path: "/app/social/notifications" },
   { label: "Create", icon: Plus, path: "/app/social/create" },

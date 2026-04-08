@@ -141,14 +141,14 @@ export default function SocialProfilePage() {
                 <p className="text-lg font-bold">{postCount}</p>
                 <p className="text-xs text-muted-foreground">Posts</p>
               </div>
-              <button className="text-center" onClick={() => navigate(`/app/social/@${displayUsername}/followers`)}>
+              <div className="text-center">
                 <p className="text-lg font-bold">{followerCount}</p>
                 <p className="text-xs text-muted-foreground">Followers</p>
-              </button>
-              <button className="text-center" onClick={() => navigate(`/app/social/@${displayUsername}/followers?tab=following`)}>
+              </div>
+              <div className="text-center">
                 <p className="text-lg font-bold">{followingCount}</p>
                 <p className="text-xs text-muted-foreground">Following</p>
-              </button>
+              </div>
             </div>
           </div>
 

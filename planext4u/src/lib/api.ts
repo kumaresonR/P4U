@@ -427,13 +427,13 @@ export const api = {
   // ─── Points ──────────────────────────────────────────────────────────────────
 
   getPointsTransactions: async (params: { page?: number; per_page?: number; date_from?: string; date_to?: string }) => {
-    return paginate<PointsTransaction>('/points-transactions', params);
+    return paginate<PointsTransaction>('/admin/points-transactions', params);
   },
 
   // ─── Referrals ───────────────────────────────────────────────────────────────
 
   getReferrals: async (params: { page?: number; per_page?: number; date_from?: string; date_to?: string }) => {
-    return paginate<Referral>('/referrals', params);
+    return paginate<Referral>('/admin/referrals', params);
   },
 
   // ─── Categories ──────────────────────────────────────────────────────────────
@@ -471,11 +471,11 @@ export const api = {
   // ─── Platform Variables ──────────────────────────────────────────────────────
 
   getPlatformVariables: async () => {
-    return http.get<PlatformVariable[]>('/admin/platform-variables');
+    return http.get<PlatformVariable[]>('/master/platform-variables');
   },
 
   updatePlatformVariable: async (id: string, value: string) => {
-    await http.patch(`/admin/platform-variables/${id}`, { value });
+    await http.patch(`/master/platform-variables/${id}`, { value });
     return { success: true };
   },
 
@@ -525,36 +525,36 @@ export const api = {
   // ─── Tax Config ──────────────────────────────────────────────────────────────
 
   getTaxConfig: async (params: { page?: number; per_page?: number; status?: string }) => {
-    return paginate<TaxConfig>('/admin/tax-config', params);
+    return paginate<TaxConfig>('/master/tax-configs', params);
   },
 
   // ─── Popup Banners ───────────────────────────────────────────────────────────
 
   getPopupBanners: async (params: { page?: number; per_page?: number; status?: string }) => {
-    return paginate<PopupBanner>('/admin/popup-banners', params);
+    return paginate<PopupBanner>('/admin/popups', params);
   },
 
   // ─── Advertisements ──────────────────────────────────────────────────────────
 
   getAdvertisements: async (params: { page?: number; per_page?: number; status?: string; date_from?: string; date_to?: string }) => {
-    return paginate<Advertisement>('/admin/advertisements', params);
+    return paginate<Advertisement>('/admin/ads', params);
   },
 
   // ─── Website Queries ─────────────────────────────────────────────────────────
 
   getWebsiteQueries: async (params: { page?: number; per_page?: number; status?: string; date_from?: string; date_to?: string }) => {
-    return paginate<WebsiteQuery>('/admin/website-queries', params);
+    return paginate<WebsiteQuery>('/admin/queries', params);
   },
 
   updateWebsiteQueryStatus: async (id: string, status: WebsiteQuery['status']) => {
-    await http.patch(`/admin/website-queries/${id}`, { status });
+    await http.patch(`/admin/queries/${id}`, { status });
     return { success: true };
   },
 
   // ─── Report Log ──────────────────────────────────────────────────────────────
 
   getReportLog: async (params: { page?: number; per_page?: number; status?: string; date_from?: string; date_to?: string }) => {
-    return paginate<ReportLog>('/admin/report-log', params);
+    return paginate<ReportLog>('/admin/property-reports', params);
   },
 
   // ─── Customer-facing APIs ────────────────────────────────────────────────────
@@ -652,7 +652,7 @@ export const api = {
   // ─── Reports ─────────────────────────────────────────────────────────────────
 
   getSalesReport: async (params: any) => {
-    return http.get<any>('/admin/reports/sales', params);
+    return http.get<any>('/admin/reports/orders', params);
   },
 
   getVendorPerformance: async (params: any) => {

@@ -6,10 +6,13 @@ import { AuthRequest } from '../../types';
 export const dashboard      = async (_: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getDashboardStats()); } catch (e) { next(e); } };
 
 // Reports
-export const ordersReport   = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getOrdersReport(req)); } catch (e) { next(e); } };
-export const revenueReport  = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getRevenueReport(req)); } catch (e) { next(e); } };
-export const customersReport = async (_: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getCustomersReport()); } catch (e) { next(e); } };
-export const pointsReport   = async (_: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getPointsReport()); } catch (e) { next(e); } };
+export const ordersReport            = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getOrdersReport(req)); } catch (e) { next(e); } };
+export const revenueReport           = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getRevenueReport(req)); } catch (e) { next(e); } };
+export const customersReport         = async (_: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getCustomersReport()); } catch (e) { next(e); } };
+export const pointsReport            = async (_: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getPointsReport()); } catch (e) { next(e); } };
+export const vendorPerformanceReport = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getVendorPerformanceReport(req)); } catch (e) { next(e); } };
+export const settlementsReport       = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getSettlementsReport(req)); } catch (e) { next(e); } };
+export const referralsReport         = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getReferralsReport(req)); } catch (e) { next(e); } };
 
 // Banners
 export const getBanners     = async (_: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getBanners()); } catch (e) { next(e); } };
@@ -54,6 +57,9 @@ export const subscribe      = async (req: Request, res: Response, next: NextFunc
 export const unsubscribe    = async (req: Request, res: Response, next: NextFunction) => { try { await svc.unsubscribeEmail(req.body.email); sendSuccess(res, null, 'Unsubscribed'); } catch (e) { next(e); } };
 
 // Activity logs
+export const listPointsTransactions = async (req: Request, res: Response, next: NextFunction) => { try { const r = await svc.listPointsTransactions(req); sendPaginated(res, r.data, r.total, r.page, r.limit); } catch (e) { next(e); } };
+export const listReferrals          = async (req: Request, res: Response, next: NextFunction) => { try { const r = await svc.listReferrals(req); sendPaginated(res, r.data, r.total, r.page, r.limit); } catch (e) { next(e); } };
+
 export const getActivityLogs = async (req: Request, res: Response, next: NextFunction) => { try { const r = await svc.getActivityLogs(req); sendPaginated(res, r.data, r.total, r.page, r.limit); } catch (e) { next(e); } };
 
 // Audit logs

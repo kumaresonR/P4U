@@ -35,6 +35,13 @@ router.get('/categories/:id/children', async (req: Request, res: Response, next:
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 
+router.get('/products', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const r = await productSvc.browseProducts(req);
+    sendPaginated(res, r.data, r.total, r.page, r.limit);
+  } catch (e) { next(e); }
+});
+
 router.get('/products/:id', async (req: Request, res: Response, next: NextFunction) => {
   try { sendSuccess(res, await productSvc.getProduct(req.params.id)); } catch (e) { next(e); }
 });
