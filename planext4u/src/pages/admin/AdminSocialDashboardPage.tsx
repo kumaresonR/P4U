@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Users, Image, CheckCircle2, TrendingUp, Shield, Flag, Hash, Music2, Settings2, BarChart3, MoreHorizontal, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api as http } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
@@ -40,33 +40,54 @@ export default function AdminSocialDashboardPage() {
   const { data: profiles = [], refetch: refetchProfiles } = useQuery({
     queryKey: ['admin-social-profiles'],
     queryFn: async () => {
-      const { data } = await supabase.from('social_profiles').select('*').order('created_at', { ascending: false }).limit(100);
-      return data || [];
-    }
+      const rows = await http.get<any[]>('/social/admin/profiles');
+      return (rows || []).map((p: any) => ({
+        ...p,
+        display_name: p.customer?.name || '',
+        account_type: p.is_creator ? 'creator' : 'user',
+        follower_count: p.followers_count,
+        post_count: p.posts_count,
+      }));
+    },
   });
 
-  const { data: posts = [] } = useQuery({
+  const { data: posts = [], refetch: refetchPosts } = useQuery({
     queryKey: ['admin-social-posts'],
     queryFn: async () => {
-      const { data } = await supabase.from('social_posts').select('*').order('created_at', { ascending: false }).limit(100);
-      return data || [];
-    }
+      const rows = await http.get<any[]>('/social/admin/posts');
+      return (rows || []).map((post: any) => ({
+        ...post,
+        like_count: post.likes_count,
+        comment_count: post.comments_count,
+      }));
+    },
   });
 
   const { data: hashtags = [], refetch: refetchHashtags } = useQuery({
     queryKey: ['admin-social-hashtags'],
     queryFn: async () => {
-      const { data } = await supabase.from('social_hashtags').select('*').order('post_count', { ascending: false }).limit(50);
-      return data || [];
-    }
+      const rows = await http.get<any[]>('/social/admin/hashtags');
+      return (rows || []).map((h: any) => ({
+        ...h,
+        name: h.tag,
+        post_count: h.posts_count,
+        is_trending: false,
+        is_blocked: false,
+      }));
+    },
   });
 
   const { data: audioTracks = [], refetch: refetchAudio } = useQuery({
     queryKey: ['admin-social-audio'],
     queryFn: async () => {
-      const { data } = await supabase.from('social_audio').select('*').order('use_count', { ascending: false }).limit(50);
-      return data || [];
-    }
+      const rows = await http.get<any[]>('/social/admin/audio');
+      return (rows || []).map((a: any) => ({
+        ...a,
+        use_count: a.uses_count,
+        is_trending: false,
+        genre: '—',
+      }));
+    },
   });
 
   const verifiedCount = profiles.filter((p: any) => p.is_verified).length;
@@ -187,7 +208,12 @@ export default function AdminSocialDashboardPage() {
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={async () => {
-                                await supabase.from('social_profiles').update({ is_verified: !p.is_verified }).eq('id', p.id);
+                                try {
+                                  await http.patch(`/social/admin/profiles/${p.id}/verified`, {});
+                                } catch {
+                                  toast.error("Failed");
+                                  return;
+                                }
                                 refetchProfiles();
                                 toast.success("Updated");
                               }}>
@@ -245,7 +271,13 @@ export default function AdminSocialDashboardPage() {
                         <TableCell><Badge variant={post.status === 'active' ? 'default' : 'destructive'}>{post.status}</Badge></TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" className="text-destructive" onClick={async () => {
-                            await supabase.from('social_posts').update({ status: 'removed' }).eq('id', post.id);
+                            try {
+                              await http.patch(`/social/admin/posts/${post.id}/status`, { status: 'removed' });
+                            } catch {
+                              toast.error("Failed");
+                              return;
+                            }
+                            refetchPosts();
                             toast.success("Post removed");
                           }}>Remove</Button>
                         </TableCell>
@@ -284,16 +316,8 @@ export default function AdminSocialDashboardPage() {
                         <TableCell>{h.is_blocked ? <Badge variant="destructive">Blocked</Badge> : "—"}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" onClick={async () => {
-                              await supabase.from('social_hashtags').update({ is_trending: !h.is_trending }).eq('id', h.id);
-                              refetchHashtags();
-                              toast.success(h.is_trending ? "Unpinned" : "Pinned as trending");
-                            }}>{h.is_trending ? "Unpin" : "Pin"}</Button>
-                            <Button variant="ghost" size="sm" className="text-destructive" onClick={async () => {
-                              await supabase.from('social_hashtags').update({ is_blocked: !h.is_blocked }).eq('id', h.id);
-                              refetchHashtags();
-                              toast.success(h.is_blocked ? "Unblocked" : "Blocked");
-                            }}>{h.is_blocked ? "Unblock" : "Block"}</Button>
+                            <Button variant="ghost" size="sm" disabled title="Not supported by API yet">{h.is_trending ? "Unpin" : "Pin"}</Button>
+                            <Button variant="ghost" size="sm" className="text-destructive" disabled title="Not supported by API yet">{h.is_blocked ? "Unblock" : "Block"}</Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -332,11 +356,7 @@ export default function AdminSocialDashboardPage() {
                         <TableCell>{a.use_count}</TableCell>
                         <TableCell>{a.is_trending ? <Badge className="bg-accent text-accent-foreground">Trending</Badge> : "—"}</TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="sm" onClick={async () => {
-                            await supabase.from('social_audio').update({ is_trending: !a.is_trending }).eq('id', a.id);
-                            refetchAudio();
-                            toast.success("Updated");
-                          }}>{a.is_trending ? "Untrend" : "Trend"}</Button>
+                          <Button variant="ghost" size="sm" disabled title="Not supported by API yet">{a.is_trending ? "Untrend" : "Trend"}</Button>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -372,3 +372,34 @@ export const sendDM = async (senderId: string, receiverId: string, message: stri
 
   return msg;
 };
+
+// ─── Admin dashboard ─────────────────────────────────────────────────────────
+
+export const adminListSocialProfilesForDashboard = () =>
+  prisma.socialProfile.findMany({
+    orderBy: { created_at: 'desc' },
+    take: 100,
+    include: { customer: { select: { name: true } } },
+  });
+
+export const adminToggleSocialProfileVerified = async (id: string) => {
+  const p = await prisma.socialProfile.findUnique({ where: { id } });
+  if (!p) throw new AppError('Not found', 404);
+  return prisma.socialProfile.update({ where: { id }, data: { is_verified: !p.is_verified } });
+};
+
+export const adminListSocialPostsForDashboard = () =>
+  prisma.socialPost.findMany({
+    orderBy: { created_at: 'desc' },
+    take: 100,
+    include: { profile: { select: { username: true } } },
+  });
+
+export const adminSetSocialPostStatus = (id: string, status: string) =>
+  prisma.socialPost.update({ where: { id }, data: { status } });
+
+export const adminListSocialHashtagsForDashboard = () =>
+  prisma.socialHashtag.findMany({ orderBy: { posts_count: 'desc' }, take: 50 });
+
+export const adminListSocialAudioForDashboard = () =>
+  prisma.socialAudio.findMany({ orderBy: { uses_count: 'desc' }, take: 50 });

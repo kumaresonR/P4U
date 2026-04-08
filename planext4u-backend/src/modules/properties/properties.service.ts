@@ -39,11 +39,28 @@ export const searchProperties = async (req: Request) => {
 
 export const listPropertiesAdmin = async (req: Request) => {
   const { page, limit, skip } = getPagination(req);
-  const { status } = req.query as Record<string, string>;
+  const { status, search, user_id } = req.query as Record<string, string>;
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
+  if (user_id) where.user_id = user_id;
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: 'insensitive' } },
+      { locality: { contains: search, mode: 'insensitive' } },
+      { address: { contains: search, mode: 'insensitive' } },
+    ];
+  }
   const [data, total] = await Promise.all([
-    prisma.property.findMany({ where, skip, take: limit, orderBy: { created_at: 'desc' } }),
+    prisma.property.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { created_at: 'desc' },
+      include: {
+        user: { select: { id: true, name: true, mobile: true } },
+        city: { select: { name: true } },
+      },
+    }),
     prisma.property.count({ where }),
   ]);
   return { data, total, page, limit };
@@ -64,7 +81,9 @@ export const getProperty = async (id: string) => {
 };
 
 export const createProperty = (userId: string, data: object) =>
-  prisma.property.create({ data: { ...(data as object), user_id: userId } as Parameters<typeof prisma.property.create>[0]['data'] });
+  prisma.property.create({
+    data: { ...(data as object), user_id: userId } as Parameters<typeof prisma.property.create>[0]['data'],
+  });
 
 export const updateProperty = (id: string, data: object) =>
   prisma.property.update({ where: { id }, data });
@@ -114,6 +133,7 @@ export const getRentTrackers = (customerId: string) =>
 export const createRentTracker = (customerId: string, data: {
   property_name?: string; landlord_name?: string; landlord_contact?: string;
   monthly_rent: number; due_date: number;
+  start_date?: string;
 }) =>
   prisma.rentPayment.create({
     data: {
@@ -201,6 +221,15 @@ export const getReports = async (req: import('express').Request) => {
   return { data, total, page, limit };
 };
 
+export const listPropertyReportsFull = () =>
+  prisma.propertyReport.findMany({
+    orderBy: { created_at: 'desc' },
+    include: { property: { select: { id: true, title: true, locality: true } } },
+  });
+
+export const updatePropertyReportRow = (id: string, status: string) =>
+  prisma.propertyReport.update({ where: { id }, data: { status } });
+
 // EMI Calculator (stateless)
 export const calculateEmi = (principal: number, annualRate: number, tenureMonths: number) => {
   const r = annualRate / 12 / 100;
@@ -208,3 +237,179 @@ export const calculateEmi = (principal: number, annualRate: number, tenureMonths
   const totalAmount = emi * tenureMonths;
   return { emi: Math.round(emi), total_amount: Math.round(totalAmount), total_interest: Math.round(totalAmount - principal) };
 };
+
+// Two-party property chat (customer ↔ owner), no receiver_id on messages
+export const getPropertyMessagesBetween = async (propertyId: string, userId: string, otherUserId: string) => {
+  const prop = await prisma.property.findUnique({ where: { id: propertyId } });
+  if (!prop) throw new AppError('Property not found', 404);
+  if (userId === otherUserId) throw new AppError('Forbidden', 403);
+  const involvesOwner = userId === prop.user_id || otherUserId === prop.user_id;
+  if (!involvesOwner) throw new AppError('Forbidden', 403);
+  return prisma.propertyMessage.findMany({
+    where: { property_id: propertyId, sender_id: { in: [userId, otherUserId] } },
+    include: { sender: { select: { name: true, avatar: true } } },
+    orderBy: { created_at: 'asc' },
+  });
+};
+
+export const markPropertyThreadRead = async (propertyId: string, readerId: string, senderIdToMark: string) => {
+  await prisma.propertyMessage.updateMany({
+    where: { property_id: propertyId, sender_id: senderIdToMark, is_read: false },
+    data: { is_read: true },
+  });
+};
+
+export type PropertyChatThread = {
+  id: string;
+  property_id: string;
+  other_user_id: string;
+  other_name: string;
+  last_message: { id: string; message: string; created_at: Date; sender_id: string };
+  unread: number;
+};
+
+export const getMyPropertyChatThreads = async (userId: string): Promise<PropertyChatThread[]> => {
+  type Msg = {
+    id: string; message: string; created_at: Date; sender_id: string; property_id: string;
+    property: { user_id: string; user: { name: string | null } | null };
+    sender: { id: string; name: string | null } | null;
+  };
+  const threads = new Map<string, PropertyChatThread>();
+
+  const sent = (await prisma.propertyMessage.findMany({
+    where: { sender_id: userId },
+    include: { property: { include: { user: { select: { id: true, name: true } } } } },
+    orderBy: { created_at: 'desc' },
+  })) as Msg[];
+  for (const m of sent) {
+    const ownerId = m.property.user_id;
+    const key = `${ownerId}_${m.property_id}`;
+    if (threads.has(key)) continue;
+    const unread = await prisma.propertyMessage.count({
+      where: { property_id: m.property_id, sender_id: ownerId, is_read: false },
+    });
+    threads.set(key, {
+      id: key,
+      property_id: m.property_id,
+      other_user_id: ownerId,
+      other_name: m.property.user?.name || 'Owner',
+      last_message: { id: m.id, message: m.message, created_at: m.created_at, sender_id: m.sender_id },
+      unread,
+    });
+  }
+
+  const owned = await prisma.property.findMany({ where: { user_id: userId }, select: { id: true } });
+  const ownedIds = owned.map((p) => p.id);
+  if (ownedIds.length) {
+    const received = (await prisma.propertyMessage.findMany({
+      where: { property_id: { in: ownedIds }, sender_id: { not: userId } },
+      include: { sender: { select: { id: true, name: true } }, property: { include: { user: { select: { id: true, name: true } } } } },
+      orderBy: { created_at: 'desc' },
+    })) as Msg[];
+    for (const m of received) {
+      const key = `${m.sender_id}_${m.property_id}`;
+      if (threads.has(key)) continue;
+      const unread = await prisma.propertyMessage.count({
+        where: { property_id: m.property_id, sender_id: m.sender_id, is_read: false },
+      });
+      threads.set(key, {
+        id: key,
+        property_id: m.property_id,
+        other_user_id: m.sender_id,
+        other_name: m.sender?.name || 'User',
+        last_message: { id: m.id, message: m.message, created_at: m.created_at, sender_id: m.sender_id },
+        unread,
+      });
+    }
+  }
+
+  const refreshLast = async (t: PropertyChatThread): Promise<PropertyChatThread> => {
+    const last = await prisma.propertyMessage.findFirst({
+      where: {
+        property_id: t.property_id,
+        sender_id: { in: [userId, t.other_user_id] },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    if (!last) return t;
+    return {
+      ...t,
+      last_message: {
+        id: last.id,
+        message: last.message,
+        created_at: last.created_at,
+        sender_id: last.sender_id,
+      },
+    };
+  };
+
+  const merged = await Promise.all([...threads.values()].map(refreshLast));
+  return merged.sort(
+    (a, b) => new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime(),
+  );
+};
+
+export const updateRentTrackerPaidMonths = async (trackerId: string, userId: string, paid_months: unknown[]) => {
+  const t = await prisma.rentPayment.findUnique({ where: { id: trackerId } });
+  if (!t || t.user_id !== userId) throw new AppError('Rent tracker not found', 404);
+  return prisma.rentPayment.update({
+    where: { id: trackerId },
+    data: { paid_months: paid_months as object },
+  });
+};
+
+export const deleteRentTracker = async (trackerId: string, userId: string) => {
+  const t = await prisma.rentPayment.findUnique({ where: { id: trackerId } });
+  if (!t || t.user_id !== userId) throw new AppError('Rent tracker not found', 404);
+  await prisma.rentPayment.delete({ where: { id: trackerId } });
+};
+
+// ─── Admin: property master data ─────────────────────────────────────────────
+
+export const listAllPropertyLocalities = () =>
+  prisma.propertyLocality.findMany({ orderBy: { created_at: 'desc' } });
+
+export const createPropertyLocalityRow = (data: { name: string; city_id?: string | null; area_id?: string | null; status?: string }) =>
+  prisma.propertyLocality.create({ data });
+
+export const updatePropertyLocalityRow = (id: string, data: object) =>
+  prisma.propertyLocality.update({ where: { id }, data });
+
+export const deletePropertyLocalityRow = (id: string) =>
+  prisma.propertyLocality.delete({ where: { id } });
+
+export const listAllPropertyAmenities = () =>
+  prisma.propertyAmenity.findMany({ orderBy: { sort_order: 'asc' } });
+
+export const createPropertyAmenityRow = (data: object) =>
+  prisma.propertyAmenity.create({ data: data as Parameters<typeof prisma.propertyAmenity.create>[0]['data'] });
+
+export const updatePropertyAmenityRow = (id: string, data: object) =>
+  prisma.propertyAmenity.update({ where: { id }, data });
+
+export const deletePropertyAmenityRow = (id: string) =>
+  prisma.propertyAmenity.delete({ where: { id } });
+
+export const listAllPropertyFilterOptions = () =>
+  prisma.propertyFilterOption.findMany({ orderBy: { sort_order: 'asc' } });
+
+export const createPropertyFilterOptionRow = (data: object) =>
+  prisma.propertyFilterOption.create({ data: data as Parameters<typeof prisma.propertyFilterOption.create>[0]['data'] });
+
+export const updatePropertyFilterOptionRow = (id: string, data: object) =>
+  prisma.propertyFilterOption.update({ where: { id }, data });
+
+export const deletePropertyFilterOptionRow = (id: string) =>
+  prisma.propertyFilterOption.delete({ where: { id } });
+
+export const listAllPropertyPlans = () =>
+  prisma.propertyPlan.findMany({ orderBy: { price: 'asc' } });
+
+export const createPropertyPlanRow = (data: object) =>
+  prisma.propertyPlan.create({ data: data as Parameters<typeof prisma.propertyPlan.create>[0]['data'] });
+
+export const updatePropertyPlanRow = (id: string, data: object) =>
+  prisma.propertyPlan.update({ where: { id }, data });
+
+export const deletePropertyPlanRow = (id: string) =>
+  prisma.propertyPlan.delete({ where: { id } });

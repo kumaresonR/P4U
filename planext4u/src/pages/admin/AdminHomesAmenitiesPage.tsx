@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable } from "@/components/admin/DataTable";
-import { supabase } from "@/integrations/supabase/client";
+import { api as http } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -28,18 +28,12 @@ export default function AdminHomesAmenitiesPage() {
 
   const { data: amenities } = useQuery({
     queryKey: ["adminAmenities"],
-    queryFn: async () => {
-      const { data } = await supabase.from("property_amenities").select("*").order("sort_order");
-      return data || [];
-    },
+    queryFn: async () => http.get<any[]>("/properties/admin/amenities"),
   });
 
   const { data: filterOptions } = useQuery({
     queryKey: ["adminFilterOptions"],
-    queryFn: async () => {
-      const { data } = await supabase.from("property_filter_options").select("*").order("sort_order");
-      return data || [];
-    },
+    queryFn: async () => http.get<any[]>("/properties/admin/filter-options"),
   });
 
   const filteredAmenities = (amenities || []).filter((a: any) =>
@@ -52,11 +46,13 @@ export default function AdminHomesAmenitiesPage() {
 
   const handleSaveAmenity = async () => {
     if (!amenityForm.name) { toast.error("Name required"); return; }
-    const payload = { name: amenityForm.name, icon: amenityForm.icon, category: amenityForm.category, sort_order: Number(amenityForm.sort_order), is_active: amenityForm.is_active };
-    if (editing) {
-      await supabase.from("property_amenities").update(payload).eq("id", editing.id);
-    } else {
-      await supabase.from("property_amenities").insert(payload);
+    const payload = { name: amenityForm.name, icon: amenityForm.icon || undefined, category: amenityForm.category, sort_order: Number(amenityForm.sort_order), is_active: amenityForm.is_active };
+    try {
+      if (editing) await http.put(`/properties/admin/amenities/${editing.id}`, payload);
+      else await http.post("/properties/admin/amenities", payload);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+      return;
     }
     toast.success(editing ? "Updated!" : "Added!");
     setShowModal(false); setEditing(null);
@@ -65,11 +61,13 @@ export default function AdminHomesAmenitiesPage() {
 
   const handleSaveFilter = async () => {
     if (!filterForm.label || !filterForm.value) { toast.error("Label and value required"); return; }
-    const payload = { filter_type: filterForm.filter_type, label: filterForm.label, value: filterForm.value, sort_order: Number(filterForm.sort_order), is_active: filterForm.is_active };
-    if (editing) {
-      await supabase.from("property_filter_options").update(payload).eq("id", editing.id);
-    } else {
-      await supabase.from("property_filter_options").insert(payload);
+    const payload = { filter_key: filterForm.filter_type, label: filterForm.label, value: filterForm.value, sort_order: Number(filterForm.sort_order), is_active: filterForm.is_active };
+    try {
+      if (editing) await http.put(`/properties/admin/filter-options/${editing.id}`, payload);
+      else await http.post("/properties/admin/filter-options", payload);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+      return;
     }
     toast.success(editing ? "Updated!" : "Added!");
     setShowModal(false); setEditing(null);
@@ -77,13 +75,23 @@ export default function AdminHomesAmenitiesPage() {
   };
 
   const handleDeleteAmenity = async (id: string) => {
-    await supabase.from("property_amenities").delete().eq("id", id);
+    try {
+      await http.delete(`/properties/admin/amenities/${id}`);
+    } catch {
+      toast.error("Delete failed");
+      return;
+    }
     toast.success("Deleted");
     qc.invalidateQueries({ queryKey: ["adminAmenities"] });
   };
 
   const handleDeleteFilter = async (id: string) => {
-    await supabase.from("property_filter_options").delete().eq("id", id);
+    try {
+      await http.delete(`/properties/admin/filter-options/${id}`);
+    } catch {
+      toast.error("Delete failed");
+      return;
+    }
     toast.success("Deleted");
     qc.invalidateQueries({ queryKey: ["adminFilterOptions"] });
   };
@@ -108,7 +116,7 @@ export default function AdminHomesAmenitiesPage() {
   ];
 
   const filterColumns = [
-    { key: "filter_type", label: "Type", render: (o: any) => <Badge variant="outline" className="text-[10px] capitalize">{o.filter_type?.replace("_", " ")}</Badge> },
+    { key: "filter_key", label: "Type", render: (o: any) => <Badge variant="outline" className="text-[10px] capitalize">{o.filter_key?.replace("_", " ")}</Badge> },
     { key: "label", label: "Label" },
     { key: "value", label: "Value", render: (o: any) => <code className="text-xs bg-muted px-1 rounded">{o.value}</code> },
     { key: "sort_order", label: "Order" },
@@ -118,7 +126,7 @@ export default function AdminHomesAmenitiesPage() {
         <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => {
           e.stopPropagation();
           setEditing(o);
-          setFilterForm({ filter_type: o.filter_type, label: o.label, value: o.value, sort_order: String(o.sort_order || 0), is_active: o.is_active });
+          setFilterForm({ filter_type: o.filter_key || "property_type", label: o.label, value: o.value, sort_order: String(o.sort_order || 0), is_active: o.is_active });
           setTab("filters");
           setShowModal(true);
         }}>Edit</Button>

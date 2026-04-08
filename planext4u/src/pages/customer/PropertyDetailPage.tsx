@@ -156,7 +156,11 @@ function ScheduleVisitSheet({ open, onClose, property, onSubmit }: any) {
         </div>
         <div className="px-5 pb-5">
           <Button className="w-full rounded-xl h-11" disabled={!selectedTime}
-            onClick={() => { onSubmit(dates[selectedDate].toISOString().split('T')[0], selectedTime); }}>
+            onClick={() => {
+              const d = dates[selectedDate];
+              const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+              onSubmit(ds, selectedTime);
+            }}>
             Confirm Visit
           </Button>
         </div>
@@ -188,16 +192,17 @@ export default function PropertyDetailPage() {
 
   // Fetch similar properties
   const { data: similarProps = [] } = useQuery({
-    queryKey: ["similar-properties", property?.city, property?.transaction_type, id],
+    queryKey: ["similar-properties", property?.city_id, property?.transaction_type, id],
     queryFn: async () => {
-      const { data } = await supabase.from("properties" as any).select("*")
-        .eq("status", "active")
-        .eq("transaction_type", property.transaction_type)
-        .neq("id", id)
-        .limit(6);
-      return (data || []) as any[];
+      const { data } = await http.paginate<any>("/properties/search", {
+        transaction_type: property.transaction_type,
+        ...(property.city_id ? { city_id: property.city_id } : {}),
+        page: 1,
+        limit: 12,
+      });
+      return (data || []).filter((p: { id: string }) => p.id !== id).slice(0, 6);
     },
-    enabled: !!property,
+    enabled: !!property?.transaction_type,
   });
 
   if (isLoading) return (
@@ -241,42 +246,42 @@ export default function PropertyDetailPage() {
   const handleSendEnquiry = async () => {
     if (!customerUser) { toast.error("Please login first"); navigate("/app/login"); return; }
     if (!enquiryMsg.trim()) { toast.error("Please enter a message"); return; }
-    const seekerId = customerUser.customer_id || customerUser.id;
-    // Insert a property message for 1-1 chat
-    const { error } = await supabase.from("property_messages" as any).insert({
-      property_id: id,
-      sender_id: seekerId,
-      sender_name: customerUser.name || "User",
-      receiver_id: property.user_id,
-      message: enquiryMsg.trim(),
-      is_read: false,
-    } as any);
-    if (error) { toast.error("Failed to send message"); return; }
-    // Also create enquiry record
-    await supabase.from("property_enquiries" as any).insert({
-      property_id: id,
-      seeker_id: seekerId,
-      seeker_name: customerUser.name || "User",
-      message: enquiryMsg.trim(),
-      status: "pending",
-    } as any);
+    if (!id) return;
+    const msg = enquiryMsg.trim();
+    try {
+      await http.post(`/properties/${id}/messages`, { message: msg });
+      await http.post(`/properties/${id}/enquiry`, { message: msg });
+    } catch {
+      toast.error("Failed to send message");
+      return;
+    }
     toast.success("Message sent to the owner!");
     setShowContact(false);
     setEnquiryMsg("");
   };
 
+  const parse12hTo24h = (t: string) => {
+    const m = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return "12:00";
+    let h = parseInt(m[1], 10);
+    const min = m[2];
+    const ap = m[3].toUpperCase();
+    if (ap === "PM" && h !== 12) h += 12;
+    if (ap === "AM" && h === 12) h = 0;
+    return `${String(h).padStart(2, "0")}:${min}`;
+  };
+
   const handleScheduleVisit = async (date: string, time: string) => {
     if (!customerUser) { toast.error("Please login first"); navigate("/app/login"); return; }
-    const seekerId = customerUser.customer_id || customerUser.id;
-    const { error } = await supabase.from("property_visits" as any).insert({
-      property_id: id,
-      seeker_id: seekerId,
-      seeker_name: customerUser.name || "User",
-      visit_date: date,
-      visit_time: time,
-      status: "scheduled",
-    } as any);
-    if (error) { toast.error("Failed to schedule visit"); return; }
+    if (!id) return;
+    const hm = parse12hTo24h(time);
+    const scheduled_at = new Date(`${date}T${hm}:00`).toISOString();
+    try {
+      await http.post(`/properties/${id}/visit`, { scheduled_at });
+    } catch {
+      toast.error("Failed to schedule visit");
+      return;
+    }
     toast.success(`Visit scheduled for ${date} at ${time}`);
     setShowSchedule(false);
   };

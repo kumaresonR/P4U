@@ -4,3 +4,6 @@ dist/
 *.log
 coverage/
 .DS_Store
+
+# Local backend notes — do not commit
+BACKEND_STATUS.md

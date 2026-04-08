@@ -4,7 +4,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable, SummaryWidget } from "@/components/admin/DataTable";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Home, CheckCircle, XCircle, Clock, Eye, Shield } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api as http } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,20 @@ export default function AdminPropertiesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["adminProperties", page, search, statusFilter],
     queryFn: async () => {
-      let query = supabase.from("properties" as any).select("*", { count: "exact" });
-      if (search) query = query.or(`title.ilike.%${search}%,city.ilike.%${search}%,locality.ilike.%${search}%`);
-      if (statusFilter) query = query.eq("status", statusFilter);
-      const { data, count } = await query.order("created_at", { ascending: false }).range((page - 1) * perPage, page * perPage - 1);
-      return { items: (data || []) as any[], total: count || 0 };
+      const res = await http.paginate<any>("/properties/admin/all", {
+        page,
+        limit: perPage,
+        ...(statusFilter ? { status: statusFilter } : {}),
+        ...(search ? { search } : {}),
+      });
+      const items = (res.data || []).map((p: any) => ({
+        ...p,
+        city: typeof p.city === "object" && p.city?.name ? p.city.name : p.city,
+        user_name: p.user?.name ?? "",
+        posted_by: p.posted_by ?? "owner",
+        bhk: p.bhk ?? p.bedrooms,
+      }));
+      return { items, total: res.count || 0 };
     },
   });
 
@@ -36,8 +45,12 @@ export default function AdminPropertiesPage() {
   const total = data?.total || 0;
 
   const handleApprove = async (id: string) => {
-    const { error } = await supabase.from("properties" as any).update({ status: "active" } as any).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    try {
+      await http.put(`/properties/${id}/status`, { status: "active" });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+      return;
+    }
     toast.success("Property approved!");
     queryClient.invalidateQueries({ queryKey: ["adminProperties"] });
     setSelectedProperty(null);
@@ -45,8 +58,12 @@ export default function AdminPropertiesPage() {
 
   const handleReject = async () => {
     if (!selectedProperty) return;
-    const { error } = await supabase.from("properties" as any).update({ status: "rejected", rejection_reason: rejectReason } as any).eq("id", selectedProperty.id);
-    if (error) { toast.error(error.message); return; }
+    try {
+      await http.put(`/properties/${selectedProperty.id}/status`, { status: "rejected" });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+      return;
+    }
     toast.success("Property rejected");
     queryClient.invalidateQueries({ queryKey: ["adminProperties"] });
     setShowRejectDialog(false);
@@ -54,9 +71,14 @@ export default function AdminPropertiesPage() {
     setRejectReason("");
   };
 
-  const handleVerify = async (id: string, verified: boolean) => {
-    await supabase.from("properties" as any).update({ is_verified: verified } as any).eq("id", id);
-    toast.success(verified ? "Verified!" : "Verification removed");
+  const handleVerify = async (id: string, featured: boolean) => {
+    try {
+      await http.put(`/properties/${id}`, { is_featured: featured });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+      return;
+    }
+    toast.success(featured ? "Featured!" : "Unfeatured");
     queryClient.invalidateQueries({ queryKey: ["adminProperties"] });
   };
 
@@ -78,7 +100,7 @@ export default function AdminPropertiesPage() {
     { key: "price", label: "Price", render: (p: any) => <span className="font-medium">₹{Number(p.price).toLocaleString("en-IN")}</span> },
     { key: "posted_by", label: "Posted By", render: (p: any) => <span className="text-xs capitalize">{p.posted_by} - {p.user_name}</span> },
     { key: "status", label: "Status", render: (p: any) => <StatusBadge status={p.status} /> },
-    { key: "is_verified", label: "Verified", render: (p: any) => p.is_verified ? <Shield className="h-4 w-4 text-success" /> : <span className="text-xs text-muted-foreground">No</span> },
+    { key: "is_featured", label: "Featured", render: (p: any) => p.is_featured ? <Shield className="h-4 w-4 text-success" /> : <span className="text-xs text-muted-foreground">No</span> },
     { key: "actions", label: "Actions", render: (p: any) => (
       <div className="flex gap-1">
         {p.status === "submitted" && (
@@ -87,8 +109,8 @@ export default function AdminPropertiesPage() {
             <Button size="sm" variant="outline" className="h-7 text-[10px] text-destructive border-destructive/30" onClick={(e) => { e.stopPropagation(); setSelectedProperty(p); setShowRejectDialog(true); }}>Reject</Button>
           </>
         )}
-        <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); handleVerify(p.id, !p.is_verified); }}>
-          {p.is_verified ? "Unverify" : "Verify"}
+        <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); handleVerify(p.id, !p.is_featured); }}>
+          {p.is_featured ? "Unfeature" : "Feature"}
         </Button>
       </div>
     )},
@@ -162,8 +184,8 @@ export default function AdminPropertiesPage() {
                     <Button variant="destructive" className="flex-1" onClick={() => setShowRejectDialog(true)}>Reject</Button>
                   </>
                 )}
-                <Button variant="outline" className="flex-1" onClick={() => handleVerify(selectedProperty.id, !selectedProperty.is_verified)}>
-                  {selectedProperty.is_verified ? "Remove Verification" : "Verify Owner"}
+                <Button variant="outline" className="flex-1" onClick={() => handleVerify(selectedProperty.id, !selectedProperty.is_featured)}>
+                  {selectedProperty.is_featured ? "Remove from featured" : "Mark featured"}
                 </Button>
               </div>
             </div>

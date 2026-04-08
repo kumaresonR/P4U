@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Home, TrendingUp, Eye, MessageCircle, Shield, Download, MapPin, Users, Star, Crown, BarChart3 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api as http } from "@/lib/apiClient";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from "recharts";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "#8b5cf6", "#06b6d4", "#f97316"];
@@ -13,46 +13,30 @@ const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning
 export default function AdminPropertyReportsPage() {
   const [dateRange, setDateRange] = useState("30d");
 
-  const { data: properties } = useQuery({
+  const { data: propertiesRaw } = useQuery({
     queryKey: ["adminPropertyReportData"],
     queryFn: async () => {
-      const { data } = await supabase.from("properties").select("*");
-      return (data || []) as any[];
+      const { data } = await http.paginate<any>("/properties/admin/all", { page: 1, limit: 5000 });
+      return (data || []).map((p: any) => ({
+        ...p,
+        city: typeof p.city === "object" && p.city?.name ? p.city.name : p.city_id || "",
+      }));
     },
   });
 
-  const { data: enquiries } = useQuery({
-    queryKey: ["adminEnquiryReport"],
-    queryFn: async () => {
-      const { data } = await supabase.from("property_enquiries").select("*");
-      return (data || []) as any[];
-    },
-  });
+  const properties = propertiesRaw || [];
+  const enquiries: any[] = [];
+  const visits: any[] = [];
+  const bookmarks: any[] = [];
 
-  const { data: visits } = useQuery({
-    queryKey: ["adminVisitsReport"],
-    queryFn: async () => {
-      const { data } = await supabase.from("property_visits").select("*");
-      return (data || []) as any[];
-    },
-  });
-
-  const { data: bookmarks } = useQuery({
-    queryKey: ["adminBookmarksReport"],
-    queryFn: async () => {
-      const { data } = await supabase.from("property_bookmarks").select("*");
-      return (data || []) as any[];
-    },
-  });
-
-  const all = properties || [];
+  const all = properties;
   const today = new Date().toISOString().split("T")[0];
   const todayListings = all.filter((p: any) => p.created_at?.startsWith(today)).length;
   const totalViews = all.reduce((s: number, p: any) => s + (p.views_count || 0), 0);
   const totalEnquiries = enquiries?.length || 0;
   const totalVisits = visits?.length || 0;
   const totalBookmarks = bookmarks?.length || 0;
-  const verified = all.filter((p: any) => p.is_verified).length;
+  const verified = all.filter((p: any) => p.is_featured).length;
   const activeListings = all.filter((p: any) => p.status === "active").length;
   const contactReveals = all.reduce((s: number, p: any) => s + (p.contact_reveals || 0), 0);
 
@@ -62,7 +46,7 @@ export default function AdminPropertyReportsPage() {
   })).filter(d => d.value > 0);
 
   // Transaction type distribution
-  const txData = ["rent", "sale", "lease", "pg"].map(t => ({
+  const txData = ["rent", "sell", "lease", "buy", "pg"].map(t => ({
     name: t.charAt(0).toUpperCase() + t.slice(1), value: all.filter((p: any) => p.transaction_type === t).length,
   })).filter(d => d.value > 0);
 

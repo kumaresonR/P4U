@@ -6,11 +6,37 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { sendSuccess, sendCreated } from '../../utils/response';
 import { authenticate } from '../../middleware/auth';
-import { isCustomer } from '../../middleware/rbac';
+import { isAdmin, isCustomer } from '../../middleware/rbac';
 import { AuthRequest } from '../../types';
 import * as svc from './social.service';
 
 const router = Router();
+
+// ─── Admin (before /posts/:id etc.) ──────────────────────────────────────────
+
+router.get('/admin/profiles', authenticate, isAdmin, async (_req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.adminListSocialProfilesForDashboard()); } catch (e) { next(e); }
+});
+
+router.patch('/admin/profiles/:id/verified', authenticate, isAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.adminToggleSocialProfileVerified(req.params.id)); } catch (e) { next(e); }
+});
+
+router.get('/admin/posts', authenticate, isAdmin, async (_req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.adminListSocialPostsForDashboard()); } catch (e) { next(e); }
+});
+
+router.patch('/admin/posts/:id/status', authenticate, isAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.adminSetSocialPostStatus(req.params.id, req.body.status)); } catch (e) { next(e); }
+});
+
+router.get('/admin/hashtags', authenticate, isAdmin, async (_req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.adminListSocialHashtagsForDashboard()); } catch (e) { next(e); }
+});
+
+router.get('/admin/audio', authenticate, isAdmin, async (_req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.adminListSocialAudioForDashboard()); } catch (e) { next(e); }
+});
 
 // ─── Feed ─────────────────────────────────────────────────────────────────────
 

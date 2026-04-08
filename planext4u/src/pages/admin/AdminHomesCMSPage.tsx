@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable } from "@/components/admin/DataTable";
-import { supabase } from "@/integrations/supabase/client";
+import { api as http } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -38,8 +38,8 @@ export default function AdminHomesCMSPage() {
   const { data: cmsItems } = useQuery({
     queryKey: ["adminHomesCMS"],
     queryFn: async () => {
-      const { data } = await supabase.from("homes_cms").select("*").order("sort_order");
-      return data || [];
+      const res = await http.paginate<any>("/admin/homes-cms/all", { page: 1, limit: 500 });
+      return res.data || [];
     },
   });
 
@@ -56,9 +56,9 @@ export default function AdminHomesCMSPage() {
       start_date: form.start_date || null, end_date: form.end_date || null,
     };
     if (editing) {
-      await supabase.from("homes_cms").update(payload).eq("id", editing.id);
+      await http.put(`/admin/homes-cms/${editing.id}`, payload);
     } else {
-      await supabase.from("homes_cms").insert(payload);
+      await http.post("/admin/homes-cms", payload);
     }
     toast.success(editing ? "Updated!" : "Added!");
     setShowModal(false); setEditing(null);
@@ -66,7 +66,7 @@ export default function AdminHomesCMSPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("homes_cms").delete().eq("id", id);
+    await http.delete(`/admin/homes-cms/${id}`);
     toast.success("Deleted");
     qc.invalidateQueries({ queryKey: ["adminHomesCMS"] });
   };

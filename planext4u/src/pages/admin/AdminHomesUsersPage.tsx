@@ -1,45 +1,45 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable, SummaryWidget } from "@/components/admin/DataTable";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { api as http } from "@/lib/apiClient";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Home, Eye, Shield, Ban } from "lucide-react";
+import { Users, Eye, Shield } from "lucide-react";
+
+function cityLabel(p: any) {
+  if (typeof p.city === "object" && p.city?.name) return p.city.name;
+  return p.locality || "—";
+}
 
 export default function AdminHomesUsersPage() {
-  const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const perPage = 20;
 
-  // Get customers who have properties
   const { data } = useQuery({
     queryKey: ["adminHomesUsers", page, search],
     queryFn: async () => {
-      // Get all property owners
-      const { data: properties } = await supabase.from("properties").select("user_id, user_name").order("created_at", { ascending: false });
-      
-      // Get unique user IDs
+      const { data: properties } = await http.paginate<any>("/properties/admin/all", { page: 1, limit: 3000 });
       const userMap = new Map<string, { user_id: string; user_name: string; listing_count: number }>();
       (properties || []).forEach((p: any) => {
-        const existing = userMap.get(p.user_id);
-        if (existing) {
-          existing.listing_count++;
-        } else {
-          userMap.set(p.user_id, { user_id: p.user_id, user_name: p.user_name || "Unknown", listing_count: 1 });
-        }
+        const uid = p.user_id;
+        const name = p.user?.name || "Unknown";
+        const existing = userMap.get(uid);
+        if (existing) existing.listing_count++;
+        else userMap.set(uid, { user_id: uid, user_name: name, listing_count: 1 });
       });
-
       let users = Array.from(userMap.values());
       if (search) {
-        users = users.filter(u => u.user_name?.toLowerCase().includes(search.toLowerCase()) || u.user_id?.includes(search));
+        users = users.filter(
+          (u) =>
+            u.user_name?.toLowerCase().includes(search.toLowerCase()) ||
+            u.user_id?.toLowerCase().includes(search.toLowerCase()),
+        );
       }
-
       return { items: users.slice((page - 1) * perPage, page * perPage), total: users.length };
     },
   });
@@ -47,13 +47,16 @@ export default function AdminHomesUsersPage() {
   const users = data?.items || [];
   const total = data?.total || 0;
 
-  // Get user's properties on click
   const { data: userProperties } = useQuery({
     queryKey: ["userProperties", selectedUser?.user_id],
     queryFn: async () => {
       if (!selectedUser) return [];
-      const { data } = await supabase.from("properties").select("*").eq("user_id", selectedUser.user_id).order("created_at", { ascending: false });
-      return data || [];
+      const { data: rows } = await http.paginate<any>("/properties/admin/all", {
+        user_id: selectedUser.user_id,
+        page: 1,
+        limit: 200,
+      });
+      return rows || [];
     },
     enabled: !!selectedUser,
   });
@@ -101,11 +104,11 @@ export default function AdminHomesUsersPage() {
                 <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="text-sm font-medium">{p.title}</p>
-                    <p className="text-xs text-muted-foreground">{p.locality}, {p.city} • ₹{Number(p.price).toLocaleString("en-IN")}</p>
+                    <p className="text-xs text-muted-foreground">{p.locality}, {cityLabel(p)} • ₹{Number(p.price).toLocaleString("en-IN")}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={p.status} />
-                    {p.is_verified && <Shield className="h-4 w-4 text-success" />}
+                    {p.is_featured && <Shield className="h-4 w-4 text-success" />}
                   </div>
                 </div>
               ))}

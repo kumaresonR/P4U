@@ -10,11 +10,22 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { api as http } from "@/lib/apiClient";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function normalizePaidMonths(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((p) => {
+      if (typeof p === "string") return p;
+      if (p && typeof p === "object" && "month" in p) return String((p as { month: string }).month);
+      return "";
+    })
+    .filter(Boolean);
+}
 
 export default function RentTrackerPage() {
   const navigate = useNavigate();
@@ -29,23 +40,26 @@ export default function RentTrackerPage() {
     queryKey: ["rentTrackers", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data } = await supabase.from("rent_payments" as any).select("*").eq("user_id", userId).order("created_at", { ascending: false });
-      return (data || []) as any[];
+      return http.get<any[]>("/properties/my/rent-tracker");
     },
     enabled: !!userId,
   });
 
   const handleAdd = async () => {
     if (!form.property_title || !form.monthly_rent) { toast.error("Fill required fields"); return; }
-    const { error } = await supabase.from("rent_payments" as any).insert({
-      user_id: userId,
-      property_title: form.property_title,
-      landlord_name: form.landlord_name,
-      landlord_phone: form.landlord_phone,
-      monthly_rent: Number(form.monthly_rent),
-      due_date: Number(form.due_date),
-    } as any);
-    if (error) { toast.error(error.message); return; }
+    try {
+      await http.post("/properties/my/rent-tracker", {
+        property_name: form.property_title,
+        landlord_name: form.landlord_name || undefined,
+        landlord_contact: form.landlord_phone || undefined,
+        monthly_rent: Number(form.monthly_rent),
+        due_date: Number(form.due_date) || 1,
+        start_date: new Date().toISOString(),
+      });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to add tracker");
+      return;
+    }
     toast.success("Rent tracker added!");
     setShowAdd(false);
     setForm({ property_title: "", landlord_name: "", landlord_phone: "", monthly_rent: "", due_date: "1" });
@@ -53,17 +67,27 @@ export default function RentTrackerPage() {
   };
 
   const handleMarkPaid = async (tracker: any, month: string) => {
-    const paid = Array.isArray(tracker.paid_months) ? [...tracker.paid_months] : [];
+    const paid = normalizePaidMonths(tracker.paid_months);
     if (paid.includes(month)) return;
     paid.push(month);
-    await supabase.from("rent_payments" as any).update({ paid_months: paid } as any).eq("id", tracker.id);
+    try {
+      await http.patch(`/properties/my/rent-tracker/${tracker.id}`, { paid_months: paid });
+    } catch {
+      toast.error("Failed to update");
+      return;
+    }
     toast.success(`${month} marked as paid`);
     queryClient.invalidateQueries({ queryKey: ["rentTrackers"] });
     setShowPayment(null);
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("rent_payments" as any).delete().eq("id", id);
+    try {
+      await http.delete(`/properties/my/rent-tracker/${id}`);
+    } catch {
+      toast.error("Failed to remove");
+      return;
+    }
     toast.success("Tracker removed");
     queryClient.invalidateQueries({ queryKey: ["rentTrackers"] });
   };
@@ -128,7 +152,7 @@ Date: ${new Date().toLocaleDateString("en-IN")}
             </div>
           ) : (
             trackers.map((t: any) => {
-              const paid = Array.isArray(t.paid_months) ? t.paid_months : [];
+              const paid = normalizePaidMonths(t.paid_months);
               const isDue = !paid.includes(`${MONTHS[currentMonth]} ${currentYear}`) && new Date().getDate() >= t.due_date;
               return (
                 <Card key={t.id} className="p-4 space-y-3">
@@ -216,7 +240,7 @@ Date: ${new Date().toLocaleDateString("en-IN")}
               <div className="grid grid-cols-4 gap-2">
                 {MONTHS.map((m, i) => {
                   const key = `${m} ${currentYear}`;
-                  const isPaid = showPayment?.paid_months?.includes(key);
+                  const isPaid = normalizePaidMonths(showPayment?.paid_months).includes(key);
                   const isFuture = i > currentMonth;
                   return (
                     <button key={m} disabled={isPaid || isFuture}

@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local migration notes — do not commit
+MIGRATION_STATUS.md

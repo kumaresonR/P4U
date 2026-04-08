@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable, SummaryWidget } from "@/components/admin/DataTable";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { supabase } from "@/integrations/supabase/client";
+import { api as http } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -25,17 +25,20 @@ export default function AdminHomesModerationPage() {
   const { data: allProperties } = useQuery({
     queryKey: ["moderationProperties"],
     queryFn: async () => {
-      const { data } = await supabase.from("properties").select("*").order("created_at", { ascending: false });
-      return (data || []) as any[];
+      const { data } = await http.paginate<any>("/properties/admin/all", { page: 1, limit: 3000 });
+      return (data || []).map((p: any) => ({
+        ...p,
+        city: typeof p.city === "object" && p.city?.name ? p.city.name : p.city,
+        user_name: p.user?.name ?? "",
+        posted_by: p.posted_by ?? "owner",
+        bhk: p.bhk ?? p.bedrooms,
+      }));
     },
   });
 
   const { data: reports } = useQuery({
     queryKey: ["propertyReports"],
-    queryFn: async () => {
-      const { data } = await supabase.from("property_reports").select("*").order("created_at", { ascending: false });
-      return (data || []) as any[];
-    },
+    queryFn: async () => http.get<any[]>("/properties/admin/property-reports"),
   });
 
   const all = allProperties || [];
@@ -60,7 +63,12 @@ export default function AdminHomesModerationPage() {
   };
 
   const handleApprove = async (id: string) => {
-    await supabase.from("properties").update({ status: "active" as any }).eq("id", id);
+    try {
+      await http.put(`/properties/${id}/status`, { status: "active" });
+    } catch {
+      toast.error("Approve failed");
+      return;
+    }
     toast.success("Approved!");
     qc.invalidateQueries({ queryKey: ["moderationProperties"] });
     setSelectedProperty(null);
@@ -68,7 +76,12 @@ export default function AdminHomesModerationPage() {
 
   const handleReject = async () => {
     if (!selectedProperty) return;
-    await supabase.from("properties").update({ status: "rejected" as any, rejection_reason: rejectReason } as any).eq("id", selectedProperty.id);
+    try {
+      await http.put(`/properties/${selectedProperty.id}/status`, { status: "rejected" });
+    } catch {
+      toast.error("Reject failed");
+      return;
+    }
     toast.success("Rejected");
     qc.invalidateQueries({ queryKey: ["moderationProperties"] });
     setShowRejectDialog(false);
@@ -77,8 +90,13 @@ export default function AdminHomesModerationPage() {
   };
 
   const handleBulkApprove = async () => {
-    for (const id of selectedIds) {
-      await supabase.from("properties").update({ status: "active" as any }).eq("id", id);
+    try {
+      for (const id of selectedIds) {
+        await http.put(`/properties/${id}/status`, { status: "active" });
+      }
+    } catch {
+      toast.error("Bulk approve failed");
+      return;
     }
     toast.success(`${selectedIds.length} properties approved`);
     setSelectedIds([]);
@@ -86,8 +104,13 @@ export default function AdminHomesModerationPage() {
   };
 
   const handleBulkReject = async () => {
-    for (const id of selectedIds) {
-      await supabase.from("properties").update({ status: "rejected" as any, rejection_reason: "Bulk rejected by admin" } as any).eq("id", id);
+    try {
+      for (const id of selectedIds) {
+        await http.put(`/properties/${id}/status`, { status: "rejected" });
+      }
+    } catch {
+      toast.error("Bulk reject failed");
+      return;
     }
     toast.success(`${selectedIds.length} properties rejected`);
     setSelectedIds([]);
@@ -95,7 +118,12 @@ export default function AdminHomesModerationPage() {
   };
 
   const handleDismissReport = async (reportId: string) => {
-    await supabase.from("property_reports").update({ status: "dismissed" }).eq("id", reportId);
+    try {
+      await http.patch(`/properties/admin/property-reports/${reportId}`, { status: "dismissed" });
+    } catch {
+      toast.error("Dismiss failed");
+      return;
+    }
     toast.success("Report dismissed");
     qc.invalidateQueries({ queryKey: ["propertyReports"] });
   };
@@ -141,7 +169,7 @@ export default function AdminHomesModerationPage() {
 
   const reportColumns = [
     { key: "reason", label: "Reason", render: (r: any) => <p className="text-sm">{r.reason}</p> },
-    { key: "details", label: "Details", render: (r: any) => <p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.details || "—"}</p> },
+    { key: "details", label: "Details", render: (r: any) => <p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.description || "—"}</p> },
     { key: "property_id", label: "Property", render: (r: any) => <code className="text-[10px] bg-muted px-1 rounded">{r.property_id?.slice(0, 12)}...</code> },
     { key: "status", label: "Status", render: (r: any) => <StatusBadge status={r.status} /> },
     { key: "created_at", label: "Date", render: (r: any) => <span className="text-xs">{new Date(r.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span> },
@@ -150,10 +178,16 @@ export default function AdminHomesModerationPage() {
         <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); handleDismissReport(r.id); }}>Dismiss</Button>
         <Button size="sm" variant="destructive" className="h-7 text-[10px]" onClick={async (e) => {
           e.stopPropagation();
-          await supabase.from("properties").update({ status: "rejected" as any, rejection_reason: r.reason } as any).eq("id", r.property_id);
-          await supabase.from("property_reports").update({ status: "resolved" }).eq("id", r.id);
+          try {
+            await http.put(`/properties/${r.property_id}/status`, { status: "rejected" });
+            await http.patch(`/properties/admin/property-reports/${r.id}`, { status: "resolved" });
+          } catch {
+            toast.error("Failed");
+            return;
+          }
           toast.success("Property removed");
-          qc.invalidateQueries({ queryKey: ["moderationProperties", "propertyReports"] });
+          qc.invalidateQueries({ queryKey: ["moderationProperties"] });
+          qc.invalidateQueries({ queryKey: ["propertyReports"] });
         }}>Remove Listing</Button>
       </div>
     )},
@@ -284,12 +318,17 @@ export default function AdminHomesModerationPage() {
                   </>
                 )}
                 <Button variant="outline" className="flex-1" onClick={async () => {
-                  await supabase.from("properties").update({ is_verified: !selectedProperty.is_verified } as any).eq("id", selectedProperty.id);
-                  toast.success(selectedProperty.is_verified ? "Verification removed" : "Verified!");
+                  try {
+                    await http.put(`/properties/${selectedProperty.id}`, { is_featured: !selectedProperty.is_featured });
+                  } catch {
+                    toast.error("Update failed");
+                    return;
+                  }
+                  toast.success(selectedProperty.is_featured ? "Removed from featured" : "Marked featured");
                   qc.invalidateQueries({ queryKey: ["moderationProperties"] });
                   setSelectedProperty(null);
                 }}>
-                  <Shield className="h-4 w-4 mr-1" /> {selectedProperty.is_verified ? "Unverify" : "Verify"}
+                  <Shield className="h-4 w-4 mr-1" /> {selectedProperty.is_featured ? "Unfeature" : "Feature"}
                 </Button>
               </div>
             </div>

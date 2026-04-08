@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
+import { api as http } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -72,40 +72,79 @@ export default function PostPropertyPage() {
     );
   }
 
+  const mapPropertyType = (t: string) => {
+    const m: Record<string, "apartment" | "house" | "villa" | "plot" | "commercial" | "pg"> = {
+      apartment: "apartment",
+      independent_house: "house",
+      villa: "villa",
+      plot: "plot",
+      pg_hostel: "pg",
+      commercial_office: "commercial",
+      commercial_shop: "commercial",
+      commercial_warehouse: "commercial",
+      commercial_showroom: "commercial",
+    };
+    return m[t] || "apartment";
+  };
+
+  const mapTransaction = (t: string): "buy" | "sell" | "rent" | "lease" => {
+    if (t === "sale") return "sell";
+    if (t === "pg") return "rent";
+    return t as "buy" | "sell" | "rent" | "lease";
+  };
+
+  const mapFurnishing = (f: string): "unfurnished" | "semi-furnished" | "furnished" => {
+    if (f === "semi_furnished") return "semi-furnished";
+    if (f === "fully_furnished") return "furnished";
+    return "unfurnished";
+  };
+
+  const bedroomsFromBhk = (bhk: string) => {
+    if (bhk === "studio") return 0;
+    if (bhk === "5+") return 5;
+    const n = parseInt(bhk, 10);
+    return Number.isFinite(n) ? n : 1;
+  };
+
   const handleSubmit = async (asDraft: boolean) => {
     setSubmitting(true);
     try {
-      const id = `PROP-${Date.now()}`;
-      const { error } = await supabase.from("properties" as any).insert({
-        id,
-        user_id: customerUser.customer_id || customerUser.id,
-        user_name: customerUser.name,
-        transaction_type: form.transaction_type,
-        property_type: form.property_type,
-        posted_by: form.posted_by,
-        title: form.title || `${form.bhk ? form.bhk + " BHK " : ""}${form.property_type.replace("_", " ")} in ${form.locality}`,
-        description: form.description,
-        city: form.city, locality: form.locality, landmark: form.landmark, pincode: form.pincode,
-        bhk: form.bhk, area_sqft: parseFloat(form.area_sqft) || 0,
-        floor_number: parseInt(form.floor_number) || 0, total_floors: parseInt(form.total_floors) || 0,
-        age_of_property: form.age_of_property, facing: form.facing || null,
-        furnishing: form.furnishing, parking: form.parking,
-        amenities: form.amenities,
+      const title =
+        (form.title ||
+          `${form.bhk ? form.bhk + " BHK " : ""}${form.property_type.replace(/_/g, " ")} in ${form.locality}`).trim();
+      if (title.length < 5) {
+        toast.error("Add a title (at least 5 characters) on the last step");
+        setSubmitting(false);
+        return;
+      }
+      const imageUrls = form.images.map((u) => u.trim()).filter((u) => /^https?:\/\//i.test(u));
+      const payload = {
+        title,
+        description: form.description || undefined,
+        property_type: mapPropertyType(form.property_type),
+        transaction_type: mapTransaction(form.transaction_type),
         price: parseFloat(form.price) || 0,
-        maintenance_charges: parseFloat(form.maintenance_charges) || 0,
-        security_deposit: parseFloat(form.security_deposit) || 0,
-        price_negotiable: form.price_negotiable, preferred_tenant: form.preferred_tenant,
-        images: form.images, video_url: form.video_url, virtual_tour_url: form.virtual_tour_url,
-        status: asDraft ? "draft" : "submitted",
-        pg_room_type: form.pg_room_type, pg_gender_preference: form.pg_gender_preference,
-        pg_meals_included: form.pg_meals,
-      } as any);
-      if (error) throw error;
+        area_sqft: parseFloat(form.area_sqft) || undefined,
+        bedrooms: bedroomsFromBhk(form.bhk),
+        floor_number: parseInt(form.floor_number, 10) || undefined,
+        total_floors: parseInt(form.total_floors, 10) || undefined,
+        furnishing: mapFurnishing(form.furnishing),
+        facing: form.facing || undefined,
+        locality: form.locality || undefined,
+        address: [form.landmark, form.city, form.pincode].filter(Boolean).join(", ") || undefined,
+        amenities: form.amenities,
+        images: imageUrls,
+        video_url: form.video_url?.trim() || undefined,
+        status: asDraft ? ("draft" as const) : ("submitted" as const),
+      };
+      await http.post("/properties", payload);
       toast.success(asDraft ? "Saved as draft!" : "Submitted for review!");
       navigate("/app/find-home/my-properties");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to post");
-    } finally { setSubmitting(false); }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to post");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const canProceed = () => {

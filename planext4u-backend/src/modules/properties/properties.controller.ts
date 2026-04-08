@@ -13,6 +13,16 @@ export const remove        = async (req: Request, res: Response, next: NextFunct
 export const myProperties  = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const r = await svc.getUserProperties(req.user!.id, req); sendPaginated(res, r.data, r.total, r.page, r.limit); } catch (e) { next(e); } };
 
 export const getMessages   = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getPropertyMessages(req.params.id)); } catch (e) { next(e); } };
+export const getMessagesBetween = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const list = await svc.getPropertyMessagesBetween(req.params.id, req.user!.id, req.params.otherUserId);
+    await svc.markPropertyThreadRead(req.params.id, req.user!.id, req.params.otherUserId);
+    sendSuccess(res, list);
+  } catch (e) { next(e); }
+};
+export const myChatThreads = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.getMyPropertyChatThreads(req.user!.id)); } catch (e) { next(e); }
+};
 export const sendMessage   = async (req: AuthRequest, res: Response, next: NextFunction) => { try { sendCreated(res, await svc.sendPropertyMessage(req.params.id, req.user!.id, req.body.message)); } catch (e) { next(e); } };
 
 export const getSavedSearches  = async (req: AuthRequest, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getSavedSearches(req.user!.id)); } catch (e) { next(e); } };
@@ -22,6 +32,17 @@ export const deleteSearch      = async (req: Request, res: Response, next: NextF
 export const getRentTrackers   = async (req: AuthRequest, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getRentTrackers(req.user!.id)); } catch (e) { next(e); } };
 export const createRentTracker = async (req: AuthRequest, res: Response, next: NextFunction) => { try { sendCreated(res, await svc.createRentTracker(req.user!.id, req.body)); } catch (e) { next(e); } };
 export const addRentPayment    = async (req: Request, res: Response, next: NextFunction) => { try { sendCreated(res, await svc.addRentPayment(req.params.trackerId, req.body)); } catch (e) { next(e); } };
+export const patchRentPaidMonths = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    sendSuccess(res, await svc.updateRentTrackerPaidMonths(req.params.trackerId, req.user!.id, req.body.paid_months));
+  } catch (e) { next(e); }
+};
+export const removeRentTracker = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    await svc.deleteRentTracker(req.params.trackerId, req.user!.id);
+    sendSuccess(res, null, 'Deleted');
+  } catch (e) { next(e); }
+};
 
 export const emiCalc = (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -47,3 +68,61 @@ export const updateVisit    = async (req: Request, res: Response, next: NextFunc
 // Reports
 export const report         = async (req: AuthRequest, res: Response, next: NextFunction) => { try { sendCreated(res, await svc.reportProperty(req.params.id, req.user!.id, req.body.reason, req.body.description)); } catch (e) { next(e); } };
 export const allReports     = async (req: Request, res: Response, next: NextFunction) => { try { const r = await svc.getReports(req); sendPaginated(res, r.data, r.total, r.page, r.limit); } catch (e) { next(e); } };
+export const listPropertyReportsFull = async (_req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.listPropertyReportsFull()); } catch (e) { next(e); }
+};
+export const patchPropertyReport = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.updatePropertyReportRow(req.params.rid, req.body.status)); } catch (e) { next(e); }
+};
+
+export const adminListLocalities = async (_req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.listAllPropertyLocalities()); } catch (e) { next(e); }
+};
+export const adminCreateLocality = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendCreated(res, await svc.createPropertyLocalityRow(req.body)); } catch (e) { next(e); }
+};
+export const adminUpdateLocality = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.updatePropertyLocalityRow(req.params.lid, req.body)); } catch (e) { next(e); }
+};
+export const adminDeleteLocality = async (req: Request, res: Response, next: NextFunction) => {
+  try { await svc.deletePropertyLocalityRow(req.params.lid); sendSuccess(res, null, 'Deleted'); } catch (e) { next(e); }
+};
+
+export const adminListAmenities = async (_req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.listAllPropertyAmenities()); } catch (e) { next(e); }
+};
+export const adminCreateAmenity = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendCreated(res, await svc.createPropertyAmenityRow(req.body)); } catch (e) { next(e); }
+};
+export const adminUpdateAmenity = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.updatePropertyAmenityRow(req.params.aid, req.body)); } catch (e) { next(e); }
+};
+export const adminDeleteAmenity = async (req: Request, res: Response, next: NextFunction) => {
+  try { await svc.deletePropertyAmenityRow(req.params.aid); sendSuccess(res, null, 'Deleted'); } catch (e) { next(e); }
+};
+
+export const adminListFilterOptions = async (_req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.listAllPropertyFilterOptions()); } catch (e) { next(e); }
+};
+export const adminCreateFilterOption = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendCreated(res, await svc.createPropertyFilterOptionRow(req.body)); } catch (e) { next(e); }
+};
+export const adminUpdateFilterOption = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.updatePropertyFilterOptionRow(req.params.fid, req.body)); } catch (e) { next(e); }
+};
+export const adminDeleteFilterOption = async (req: Request, res: Response, next: NextFunction) => {
+  try { await svc.deletePropertyFilterOptionRow(req.params.fid); sendSuccess(res, null, 'Deleted'); } catch (e) { next(e); }
+};
+
+export const adminListPropertyPlans = async (_req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.listAllPropertyPlans()); } catch (e) { next(e); }
+};
+export const adminCreatePropertyPlan = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendCreated(res, await svc.createPropertyPlanRow(req.body)); } catch (e) { next(e); }
+};
+export const adminUpdatePropertyPlan = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.updatePropertyPlanRow(req.params.pid, req.body)); } catch (e) { next(e); }
+};
+export const adminDeletePropertyPlan = async (req: Request, res: Response, next: NextFunction) => {
+  try { await svc.deletePropertyPlanRow(req.params.pid); sendSuccess(res, null, 'Deleted'); } catch (e) { next(e); }
+};

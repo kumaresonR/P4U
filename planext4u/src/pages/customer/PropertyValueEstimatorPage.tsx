@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { api as http } from "@/lib/apiClient";
 
 const PROPERTY_TYPES = [
-  { value: "apartment", label: "Apartment" },
-  { value: "independent_house", label: "Independent House" },
-  { value: "villa", label: "Villa" },
-  { value: "commercial_office", label: "Commercial Office" },
-  { value: "commercial_shop", label: "Shop" },
+  { value: "apartment", label: "Apartment", api: "apartment" },
+  { value: "independent_house", label: "Independent House", api: "house" },
+  { value: "villa", label: "Villa", api: "villa" },
+  { value: "commercial_office", label: "Commercial Office", api: "commercial" },
+  { value: "commercial_shop", label: "Shop", api: "commercial" },
 ];
 
 function formatPrice(price: number): string {
@@ -38,11 +38,20 @@ export default function PropertyValueEstimatorPage() {
     queryKey: ["propertyBenchmark", city, locality, propertyType],
     queryFn: async () => {
       if (!city) return null;
-      let query = supabase.from("properties" as any).select("price, area_sqft, transaction_type, bhk").eq("status", "active").eq("property_type", propertyType);
-      if (locality) query = query.ilike("locality", `%${locality}%`);
-      else query = query.ilike("city", `%${city}%`);
-      const { data } = await query;
-      return (data || []) as any[];
+      const searchParts = [city, locality].filter(Boolean).join(" ");
+      const apiType = PROPERTY_TYPES.find((t) => t.value === propertyType)?.api || "apartment";
+      const { data } = await http.paginate<any>("/properties/search", {
+        search: searchParts,
+        property_type: apiType,
+        page: 1,
+        limit: 200,
+      });
+      return (data || []).map((p: any) => ({
+        price: p.price,
+        area_sqft: p.area_sqft,
+        transaction_type: p.transaction_type === "sell" ? "sale" : p.transaction_type,
+        bhk: p.bedrooms != null ? String(p.bedrooms) : "",
+      }));
     },
     enabled: estimated && !!city,
   });
@@ -53,7 +62,7 @@ export default function PropertyValueEstimatorPage() {
   };
 
   // Calculate estimates from benchmark data
-  const saleProps = benchmarkData?.filter((p: any) => p.transaction_type === "sale" && p.area_sqft > 0) || [];
+  const saleProps = benchmarkData?.filter((p: any) => (p.transaction_type === "sale" || p.transaction_type === "sell") && Number(p.area_sqft) > 0) || [];
   const rentProps = benchmarkData?.filter((p: any) => p.transaction_type === "rent") || [];
   const area = Number(areaSqft) || 1000;
 
@@ -96,7 +105,9 @@ export default function PropertyValueEstimatorPage() {
                   <Select value={propertyType} onValueChange={(v) => { setPropertyType(v); setEstimated(false); }}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {PROPERTY_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      {PROPERTY_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
