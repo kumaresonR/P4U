@@ -27,9 +27,27 @@ router.get('/',                       authenticate, ctrl.list);
 router.get('/:id',                    authenticate, ctrl.get);
 router.put('/:id/status',             authenticate, validate(updateOrderStatusSchema), ctrl.updateStatus);
 
+// Bulk operations (admin)
+router.post('/bulk-status', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const { ids, status } = req.body;
+    const { prisma } = await import('../../config/database');
+    await prisma.order.updateMany({ where: { id: { in: ids } }, data: { status } });
+    res.json({ success: true, message: 'Updated' });
+  } catch (e) { next(e); }
+});
+
 // Settlements
 router.get('/settlements',            authenticate, isAdmin, ctrl.listSettlements);
 router.put('/settlements/:id/settle', authenticate, isAdmin, ctrl.settleOne);
+router.post('/settlements/bulk-settle', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+    const { prisma } = await import('../../config/database');
+    await prisma.settlement.updateMany({ where: { id: { in: ids } }, data: { status: 'settled', settled_at: new Date() } });
+    res.json({ success: true, message: 'Settled' });
+  } catch (e) { next(e); }
+});
 router.get('/my-settlements',         authenticate, isVendor, ctrl.mySettlements);
 
 export default router;

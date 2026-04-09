@@ -22,6 +22,7 @@ router.get('/me/kyc',                    authenticate, isCustomer, ctrl.getMyKyc
 router.post('/me/kyc',                   authenticate, isCustomer, validate(submitKycSchema), ctrl.submitKyc);
 
 // Admin endpoints
+router.post('/',             authenticate, isAdmin, ctrl.create);
 router.get('/',              authenticate, isAdmin, ctrl.list);
 router.get('/:id',           authenticate, isAdmin, ctrl.get);
 router.put('/:id',           authenticate, isAdmin, validate(updateCustomerSchema.partial()), ctrl.update);

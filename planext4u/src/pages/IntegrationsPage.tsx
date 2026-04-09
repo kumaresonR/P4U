@@ -23,7 +23,7 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    http.get<any>('/admin/platform-variables').then((res) => {
+    http.get<any>('/master/platform-variables').then((res) => {
       const data = Array.isArray(res) ? res : (res?.data || []);
       const vars: Record<string, string> = {};
       data.forEach((v: any) => { vars[v.key] = v.value; });
@@ -42,10 +42,12 @@ export default function IntegrationsPage() {
       toast.error("Please fill Key ID and Secret");
       return;
     }
-    await http.post('/admin/platform-variables', [
+    for (const row of [
       { key: "RAZORPAY_KEY_ID", value: razorpayConfig.keyId },
       { key: "RAZORPAY_KEY_SECRET", value: razorpayConfig.keySecret },
-    ]);
+    ]) {
+      await http.post('/master/platform-variables', row);
+    }
     toast.success("Razorpay configuration saved");
   };
 
@@ -62,10 +64,12 @@ export default function IntegrationsPage() {
       toast.error("Please fill both Client ID and Client Secret");
       return;
     }
-    await http.post('/admin/platform-variables', [
+    for (const row of [
       { key: "GOOGLE_CLIENT_ID", value: googleConfig.clientId },
       { key: "GOOGLE_CLIENT_SECRET", value: googleConfig.clientSecret },
-    ]);
+    ]) {
+      await http.post('/master/platform-variables', row);
+    }
     toast.success("Google OAuth configuration saved");
   };
 
@@ -74,12 +78,12 @@ export default function IntegrationsPage() {
       toast.error("Please fill Firebase Service Account JSON");
       return;
     }
-    await http.post('/admin/platform-variables', [{ key: "FIREBASE_SERVICE_ACCOUNT", value: firebaseConfig.serviceAccount }]);
+    await http.post('/master/platform-variables', { key: "FIREBASE_SERVICE_ACCOUNT", value: firebaseConfig.serviceAccount });
     toast.success("Firebase configuration saved");
   };
 
   const saveMaps = async () => {
-    await http.post('/admin/platform-variables', [{ key: "GOOGLE_MAPS_API_KEY", value: mapsConfig.apiKey }]);
+    await http.post('/master/platform-variables', { key: "GOOGLE_MAPS_API_KEY", value: mapsConfig.apiKey });
     toast.success("Google Maps configuration saved");
   };
 

@@ -48,6 +48,17 @@ export const getCustomer = async (id: string) => {
   return c;
 };
 
+export const createCustomer = async (data: any) => {
+  const exists = await prisma.customer.findFirst({
+    where: { OR: [
+      ...(data.email ? [{ email: data.email }] : []),
+      ...(data.mobile ? [{ mobile: data.mobile }] : []),
+    ] },
+  });
+  if (exists) throw new AppError('Customer with this email or mobile already exists', 409);
+  return prisma.customer.create({ data });
+};
+
 export const updateCustomer = (id: string, data: object) =>
   prisma.customer.update({ where: { id }, data });
 
@@ -127,3 +138,29 @@ export const submitKyc = async (customerId: string, data: {
 
 export const getMyKyc = (customerId: string) =>
   prisma.kycDocument.findMany({ where: { user_id: customerId }, orderBy: { created_at: 'desc' } });
+
+export const updateKycDocument = async (
+  customerId: string,
+  docId: string,
+  data: Partial<{ document_type: string; document_number: string; front_image_url: string; back_image_url: string }>,
+) => {
+  const existing = await prisma.kycDocument.findFirst({ where: { id: docId, user_id: customerId } });
+  if (!existing) throw new AppError('Document not found', 404);
+  return prisma.kycDocument.update({
+    where: { id: docId },
+    data: { ...data, status: 'submitted' },
+  });
+};
+
+export const deleteSavedSearch = async (customerId: string, id: string) => {
+  const r = await prisma.savedSearch.deleteMany({ where: { id, customer_id: customerId } });
+  if (r.count === 0) throw new AppError('Saved search not found', 404);
+};
+
+export const patchSavedSearchNotify = async (customerId: string, id: string, notify: boolean) => {
+  const s = await prisma.savedSearch.findFirst({ where: { id, customer_id: customerId } });
+  if (!s) throw new AppError('Saved search not found', 404);
+  const prev = (s.filters && typeof s.filters === 'object') ? (s.filters as Record<string, unknown>) : {};
+  const filters = { ...prev, notify };
+  return prisma.savedSearch.update({ where: { id }, data: { filters } });
+};

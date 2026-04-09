@@ -77,7 +77,7 @@ export default function CustomerProfileEditPage() {
   };
 
   const loadOccupations = async () => {
-    const data: Occupation[] = await http.get('/occupations', { status: 'active', per_page: 1000 } as any).catch(() => []);
+    const data: Occupation[] = await http.get('/master/occupations', { status: 'active', per_page: 1000 } as any).catch(() => []);
     setOccupations(data);
   };
 

@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/database';
 import { sendSuccess } from '../../utils/response';
+import { AppError } from '../../middleware/errorHandler';
 import * as adminSvc from '../admin/admin.service';
 
 const router = Router();
@@ -39,10 +40,50 @@ router.get('/classified', async (req: Request, res: Response, next: NextFunction
   } catch (e) { next(e); }
 });
 
-// ─── Home CMS ────────────────────────────────────────────────────────────────
+// ─── Customer Home (aggregated) ──────────────────────────────────────────────
 
 router.get('/home', async (_req: Request, res: Response, next: NextFunction) => {
-  try { sendSuccess(res, await adminSvc.getHomesCms('home')); } catch (e) { next(e); }
+  try {
+    const [banners, categories, featuredProducts, featuredServices, serviceCategories, platformVars] = await Promise.all([
+      adminSvc.getActiveBanners(),
+      prisma.category.findMany({ where: { status: 'active' }, orderBy: { name: 'asc' } }),
+      prisma.product.findMany({
+        where: { status: 'active' },
+        orderBy: { created_at: 'desc' },
+        take: 12,
+        include: { vendor: { select: { business_name: true } }, category: { select: { name: true } } },
+      }),
+      prisma.service.findMany({
+        where: { status: 'active' },
+        orderBy: { created_at: 'desc' },
+        take: 10,
+        include: { vendor: { select: { business_name: true } } },
+      }),
+      prisma.serviceCategory.findMany({ where: { status: 'active' }, orderBy: { name: 'asc' } }),
+      prisma.platformVariable.findMany({ where: { key: { startsWith: 'homepage_image_' } } }),
+    ]);
+
+    // Build assets map from platform variables
+    const assets: Record<string, string> = {};
+    for (const v of platformVars) { assets[v.key] = v.value; }
+
+    sendSuccess(res, {
+      banners,
+      storeBanners: [],
+      categories,
+      featuredProducts: featuredProducts.map((p: any) => ({
+        ...p,
+        vendor_name: p.vendor?.business_name || '',
+        category_name: p.category?.name || '',
+      })),
+      featuredServices: featuredServices.map((s: any) => ({
+        ...s,
+        vendor_name: s.vendor?.business_name || '',
+      })),
+      serviceCategories,
+      assets,
+    });
+  } catch (e) { next(e); }
 });
 
 // ─── Brands (placeholder) ────────────────────────────────────────────────────
@@ -84,6 +125,17 @@ router.get('/service-highlights', async (_req: Request, res: Response, next: Nex
 router.post('/newsletter/subscribe', async (req: Request, res: Response, next: NextFunction) => {
   try {
     await adminSvc.subscribeEmail(req.body.email, 'website');
+    sendSuccess(res, null, 'Subscribed successfully');
+  } catch (e) { next(e); }
+});
+
+// Alias for web app (CustomerHomePage)
+router.post('/email-subscriptions', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    if (!email) throw new AppError('Email is required', 400);
+    const source = typeof req.body?.source === 'string' ? req.body.source : 'website';
+    await adminSvc.subscribeEmail(email, source);
     sendSuccess(res, null, 'Subscribed successfully');
   } catch (e) { next(e); }
 });

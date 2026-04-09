@@ -247,12 +247,12 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
 
   const { data: dbCategories } = useQuery({
     queryKey: ["categoriesForProduct"],
-    queryFn: () => http.get<any[]>('/categories', { status: 'active', parent_id: 'null' } as any),
+    queryFn: () => http.get<any[]>('/master/categories', { status: 'active', parent_id: 'null' } as any),
   });
 
   const { data: dbSubcategories } = useQuery({
     queryKey: ["subcategoriesForProduct", form.category_id],
-    queryFn: () => http.get<any[]>('/categories', { parent_id: form.category_id, status: 'active' } as any),
+    queryFn: () => http.get<any[]>('/master/categories', { parent_id: form.category_id, status: 'active' } as any),
     enabled: !!form.category_id,
   });
 

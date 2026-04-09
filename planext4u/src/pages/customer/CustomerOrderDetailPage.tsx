@@ -44,7 +44,7 @@ export default function CustomerOrderDetailPage() {
   const submitRating = useMutation({
     mutationFn: async () => {
       if (!rating) { toast.error("Please select a rating"); return; }
-      await http.patch(`/orders/${orderId}/rate`, { delivery_rating: rating, rating_comment: ratingComment || null });
+      await http.post(`/orders/${orderId}/rate`, { delivery_rating: rating, rating_comment: ratingComment || null });
     },
     onSuccess: () => {
       toast.success("Thank you for your feedback! ⭐");

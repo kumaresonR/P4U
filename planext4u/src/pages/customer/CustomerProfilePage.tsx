@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { api } from "@/lib/apiClient";
+import { api as http } from "@/lib/apiClient";
 
 export default function CustomerProfilePage() {
   const { customerUser, customerLogout } = useAuth();
@@ -25,7 +25,7 @@ export default function CustomerProfilePage() {
   const { data: counts } = useQuery({
     queryKey: ["profileCounts", customerId],
     queryFn: async () => {
-      const stats: any = await api.get('/profile/stats');
+      const stats: any = await http.get('/profile/stats');
       return {
         wishlist: stats?.wishlist_count || 0,
         classifieds: stats?.classifieds_count || 0,

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import * as ctrl from './admin.controller';
+import { sendSuccess, sendError } from '../../utils/response';
+import { prisma } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
 import { isAdmin, isCustomer } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
@@ -15,6 +17,7 @@ const router = Router();
 
 // Dashboard
 router.get('/dashboard', authenticate, isAdmin, ctrl.dashboard);
+router.get('/customer-stats', authenticate, isAdmin, ctrl.customerStats);
 
 // Reports
 router.get('/reports/orders',             authenticate, isAdmin, ctrl.ordersReport);
@@ -88,6 +91,17 @@ router.put('/kyc/:id',       authenticate, isAdmin, validate(kycReviewSchema), c
 // Vendor Applications
 router.get('/vendor-applications',        authenticate, isAdmin, ctrl.listVendorApps);
 router.put('/vendor-applications/:id',    authenticate, isAdmin, validate(vendorApplicationReviewSchema), ctrl.reviewVendorApp);
+router.patch('/vendor-applications/reject-by-phone', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const { phone, rejection_reason } = req.body as { phone?: string; rejection_reason?: string };
+    if (!phone) return sendError(res, 'phone required', 400);
+    await prisma.vendorApplication.updateMany({
+      where: { mobile: phone },
+      data: { status: 'rejected', notes: rejection_reason || '' },
+    });
+    sendSuccess(res, null, 'Applications updated');
+  } catch (e) { next(e); }
+});
 
 // Inventory
 router.get('/inventory/logs',      authenticate, isAdmin, ctrl.listInventoryLogs);

@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { loadSelectedLocation } from "@/components/customer/LocationModal";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { api } from "@/lib/apiClient";
+import { api as http } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
@@ -29,7 +29,7 @@ function DiscountSubscriptionSection() {
     }
     setLoading(true);
     try {
-      await api.post('/content/email-subscriptions', { email: email.trim(), source: "discount_banner" }, { auth: false });
+      await http.post('/content/email-subscriptions', { email: email.trim(), source: "discount_banner" }, { auth: false });
       setShowConfirm(true);
       setEmail("");
     } catch { toast.error("Failed to subscribe. Please try again."); }
@@ -188,10 +188,10 @@ export default function CustomerHomePage() {
   });
 
   useEffect(() => {
-    if (!data?.banners.length) return;
+    if (!data?.banners?.length) return;
     const interval = setInterval(() => setBannerIdx((prev) => (prev + 1) % data.banners.length), 5000);
     return () => clearInterval(interval);
-  }, [data?.banners.length]);
+  }, [data?.banners?.length]);
 
   const handleSplashComplete = useCallback(() => {
     setShowSplash(false);
@@ -403,7 +403,7 @@ export default function CustomerHomePage() {
             </div>
             <div id="product-carousel" className="flex gap-4 overflow-x-auto pb-6 px-6 scrollbar-hide scroll-smooth">
               {isLoading ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-52 w-40 rounded-xl shrink-0" />) :
-                data?.featuredProducts.map((p, idx) => (
+                data?.featuredProducts?.map((p, idx) => (
                   <motion.div key={p.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05, duration: 0.3 }} className="shrink-0">
                     <Link to={`/app/product/${p.id}`}>
                       <Card className="w-36 sm:w-44 md:w-48 overflow-hidden hover:shadow-xl transition-all duration-300 bg-card border-0 hover:-translate-y-1">
@@ -634,7 +634,7 @@ export default function CustomerHomePage() {
             </div>
             <div className="md:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {isLoading ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />) :
-                data?.serviceCategories.slice(0, 8).map((c) => (
+                data?.serviceCategories?.slice(0, 8).map((c) => (
                   <motion.div key={c.id} whileHover={{ scale: 1.03 }} transition={{ type: "spring", stiffness: 300 }}>
                     <Link to={`/app/services?category=${c.name}`}
                       className="bg-card rounded-xl border border-border/50 p-3 hover:border-primary/30 hover:shadow-md transition-all flex items-center gap-3">

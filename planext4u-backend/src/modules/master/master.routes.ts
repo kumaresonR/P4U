@@ -44,8 +44,38 @@ router.post('/tax-configs',         authenticate, isAdmin, validate(taxConfigSch
 router.put('/tax-configs/:id',      authenticate, isAdmin, validate(taxConfigSchema.partial()), ctrl.editTaxConfig);
 router.delete('/tax-configs/:id',   authenticate, isAdmin, ctrl.removeTaxConfig);
 
-router.get('/platform-variables',   authenticate, isAdmin, ctrl.listPlatformVariables);
-router.post('/platform-variables',  authenticate, isAdmin, validate(platformVariableSchema), ctrl.setPlatformVar);
+router.get('/platform-variables',        authenticate, isAdmin, ctrl.listPlatformVariables);
+router.put('/platform-variables/:id',   authenticate, isAdmin, ctrl.setPlatformVar);
+router.post('/platform-variables',      authenticate, isAdmin, validate(platformVariableSchema), ctrl.setPlatformVar);
+
+// States & Districts
+router.get('/states', async (_req, res, next) => {
+  try {
+    const { prisma } = await import('../../config/database');
+    const states = await prisma.state.findMany({ orderBy: { name: 'asc' } });
+    res.json({ success: true, data: states });
+  } catch (e) { next(e); }
+});
+router.get('/districts', async (req, res, next) => {
+  try {
+    const { prisma } = await import('../../config/database');
+    const { state_id } = req.query as Record<string, string>;
+    const districts = await prisma.district.findMany({
+      where: state_id ? { state_id } : {},
+      orderBy: { name: 'asc' },
+    });
+    res.json({ success: true, data: districts });
+  } catch (e) { next(e); }
+});
+
+// Bulk delete categories
+router.post('/categories/bulk-delete', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const { prisma } = await import('../../config/database');
+    await prisma.category.deleteMany({ where: { id: { in: req.body.ids } } });
+    res.json({ success: true, message: 'Deleted' });
+  } catch (e) { next(e); }
+});
 
 router.post('/vendor-plans',        authenticate, isAdmin, validate(vendorPlanSchema), ctrl.addVendorPlan);
 router.put('/vendor-plans/:id',     authenticate, isAdmin, validate(vendorPlanSchema.partial()), ctrl.editVendorPlan);

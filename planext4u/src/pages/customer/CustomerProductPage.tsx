@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
 import { toast } from "sonner";
 import { api, ProductVariant } from "@/lib/api";
-import { api } from "@/lib/apiClient";
+import { api as http } from "@/lib/apiClient";
 
 const reviews = [
   { user: "Rahul S.", rating: 5, comment: "Excellent quality, worth every rupee!", date: "2 days ago" },
@@ -37,7 +37,7 @@ export default function CustomerProductPage() {
   const { data: variants } = useQuery({
     queryKey: ["productVariants", id],
     queryFn: async () => {
-      return api.get<ProductVariant[]>(`/products/${id}/variants`);
+      return http.get<ProductVariant[]>(`/products/${id}/variants`);
     },
     enabled: !!id,
   });
@@ -46,7 +46,7 @@ export default function CustomerProductPage() {
   const { data: attrValues } = useQuery({
     queryKey: ["productAttributeValues"],
     queryFn: async () => {
-      return api.get<any[]>('/products/attribute-values');
+      return http.get<any[]>('/products/attribute-values');
     },
   });
 

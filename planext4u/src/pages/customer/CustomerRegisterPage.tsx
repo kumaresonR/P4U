@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { sendOTP, verifyOTP, clearRecaptcha, getFirebaseIdToken, resetPhoneAuth, ensureFirebaseHostname } from "@/lib/firebase";
+import { api } from "@/lib/api";
 import { api as backendApi, tokenStore } from "@/lib/apiClient";
 import p4uLogoTeal from "@/assets/p4u-logo-teal.png";
 
@@ -216,7 +217,7 @@ export default function CustomerRegisterPage() {
       const data: any = await backendApi.post('/auth/otp/verify', {
         firebase_token: idToken,
         name: form.name,
-        referral_code: form.referralCode || undefined,
+        referral_code: form.referral_code || undefined,
       }, { auth: false });
 
       tokenStore.set(data.access_token, data.refresh_token);
@@ -229,7 +230,8 @@ export default function CustomerRegisterPage() {
         ...(location ? { latitude: location.lat, longitude: location.lng } : {}),
       });
 
-      localStorage.setItem('p4u_user', JSON.stringify({ ...data.user, name: form.name, email: form.email, portal: 'customer' }));
+      const user = data.customer || data.user;
+      localStorage.setItem('p4u_user', JSON.stringify({ ...user, name: form.name, email: form.email, portal: 'customer' }));
 
       toast.success("🎉 Phone verified! Now set up your password.", { duration: 5000 });
       setOtpStep("password");

@@ -41,3 +41,9 @@ export const submitKycSchema = z.object({
   front_image_url: z.string().url(),
   back_image_url: z.string().url().optional(),
 });
+
+export const updateKycDocSchema = submitKycSchema.partial();
+
+export const savedSearchNotifySchema = z.object({
+  notify: z.boolean(),
+});

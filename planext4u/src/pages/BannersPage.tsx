@@ -45,13 +45,13 @@ export default function BannersPage() {
   };
 
   const handleCreate = async (data: Partial<Banner>) => {
-    await http.post('/banners', data);
+    await http.post('/admin/banners', data);
     toast.success("Banner created");
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await http.delete(`/banners/${id}`);
+    await http.delete(`/admin/banners/${id}`);
     toast.success("Banner deleted");
     fetchData();
   };

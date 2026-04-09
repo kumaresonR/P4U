@@ -81,10 +81,11 @@ export default function CustomerPhoneLoginPage() {
       // Step 3: Call our backend to verify firebase token
       const data: any = await api.post('/auth/otp/verify', { firebase_token: idToken }, { auth: false });
       tokenStore.set(data.access_token, data.refresh_token);
-      localStorage.setItem('p4u_user', JSON.stringify({ ...data.user, portal: 'customer' }));
+      const user = data.customer || data.user;
+      localStorage.setItem('p4u_user', JSON.stringify({ ...user, portal: 'customer' }));
 
-      toast.success("Login successful! 🎉");
-      setTimeout(() => navigate("/app", { replace: true }), 500);
+      toast.success("Login successful!");
+      window.location.replace("/app");
     } catch (err: any) {
       console.error("OTP verify error:", err);
       if (err.code === "auth/invalid-verification-code") {

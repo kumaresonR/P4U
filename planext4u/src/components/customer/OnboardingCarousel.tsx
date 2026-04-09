@@ -22,10 +22,15 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
   const [direction, setDirection] = useState(1);
   const [touchStart, setTouchStart] = useState(0);
 
+  const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
     api.get<OnboardingSlide[]>('/content/onboarding-screens', undefined, { auth: false })
-      .then((data) => { if (data && data.length > 0) setSlides(data); })
-      .catch(() => {});
+      .then((data) => {
+        if (data && data.length > 0) setSlides(data);
+        setLoaded(true);
+      })
+      .catch(() => { setLoaded(true); });
   }, []);
 
   const goNext = useCallback(() => {
@@ -52,7 +57,20 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
     }
   };
 
-  if (slides.length === 0) return null;
+  // If slides loaded but none available, skip onboarding entirely
+  useEffect(() => {
+    if (loaded && slides.length === 0) {
+      onComplete();
+    }
+  }, [loaded, slides.length, onComplete]);
+
+  if (slides.length === 0) {
+    return (
+      <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-background">
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   const slide = slides[current];
   const isLast = current === slides.length - 1;

@@ -38,7 +38,7 @@ export default function VendorLoginPage() {
     try {
       await vendorLogin(email, password);
       toast.success("Welcome to Vendor Portal!");
-      setTimeout(() => navigate("/vendor", { replace: true }), 500);
+      navigate("/vendor", { replace: true });
     } catch (err: any) { toast.error(err.message || "Invalid vendor credentials"); }
     finally { setLoading(false); }
   };
@@ -70,9 +70,10 @@ export default function VendorLoginPage() {
       const idToken = await getFirebaseIdToken();
       const data: any = await api.post('/auth/otp/verify', { firebase_token: idToken }, { auth: false });
       tokenStore.set(data.access_token, data.refresh_token);
-      localStorage.setItem('p4u_user', JSON.stringify({ ...data.user, portal: 'vendor' }));
-      toast.success("Welcome to Vendor Portal! 🎉");
-      setTimeout(() => navigate("/vendor", { replace: true }), 500);
+      const user = data.vendor || data.customer || data.user;
+      localStorage.setItem('p4u_user', JSON.stringify({ ...user, portal: 'vendor' }));
+      toast.success("Welcome to Vendor Portal!");
+      window.location.replace("/vendor");
     } catch (err: any) {
       if (err.code === "auth/invalid-verification-code") toast.error("Invalid OTP.");
       else toast.error(err.message || "Verification failed");

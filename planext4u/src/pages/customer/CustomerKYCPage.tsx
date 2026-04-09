@@ -51,7 +51,7 @@ export default function CustomerKYCPage() {
   const loadKYCDocs = async () => {
     setLoading(true);
     try {
-      const res = await http.get<any>('/kyc-documents');
+      const res = await http.get<any>('/profile/kyc-documents');
       const data = Array.isArray(res) ? res : (res?.data || []);
       
       const docMap: Record<string, any> = {};
@@ -159,9 +159,19 @@ export default function CustomerKYCPage() {
       };
 
       if (existing?.id) {
-        await http.patch(`/kyc-documents/${existing.id}`, payload);
+        await http.patch(`/profile/kyc-documents/${existing.id}`, {
+          document_type: type as 'aadhaar' | 'pan',
+          document_number: payload.document_number,
+          front_image_url: payload.front_image_url,
+          back_image_url: payload.back_image_url || undefined,
+        });
       } else {
-        await http.post('/kyc-documents', payload);
+        await http.post('/profile/kyc-documents', {
+          document_type: type as 'aadhaar' | 'pan',
+          document_number: payload.document_number,
+          front_image_url: payload.front_image_url,
+          back_image_url: payload.back_image_url || undefined,
+        });
       }
 
       setSelectedDoc(null);

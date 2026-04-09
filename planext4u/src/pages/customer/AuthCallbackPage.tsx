@@ -36,15 +36,22 @@ export default function AuthCallbackPage() {
           window.history.replaceState({}, document.title, "/auth/callback");
         }
 
+        // NOTE: apiClient unwraps the response envelope — data here is the payload
+        // inside `data:`, not the full {success, data, message} shape.
         const data = await http.post<any>('/auth/google/callback', { code }, { auth: false } as any);
 
-        if (!data?.success || !data?.access_token) {
+        if (!data?.access_token) {
           throw new Error(data?.error || "Your Gmail is not registered with Planext4U. Create your account first to do a Google Sign-in.");
         }
 
         if (cancelled) return;
 
         tokenStore.set(data.access_token, data.refresh_token || '');
+        // Store the user so auth-provider can pick it up via the useEffect session restore
+        const u = data.customer || data.user;
+        if (u) {
+          localStorage.setItem('p4u_user', JSON.stringify({ ...u, portal: 'customer' }));
+        }
         setRedirectPath(data?.has_address ? "/app" : "/app/set-location");
         setMessage(data?.has_address ? "Signing you in..." : "Taking you to location setup...");
         setStatus("linked");
@@ -70,12 +77,14 @@ export default function AuthCallbackPage() {
     };
   }, [navigate]);
 
+  // Navigate as soon as status becomes "linked" — localStorage was already written
+  // so auth-provider will restore the session on the next page load.
   useEffect(() => {
-    if (status === "linked" && !isLoading && customerUser) {
+    if (status === "linked") {
       toast.success("Welcome to Planext4u!");
-      navigate(redirectPath, { replace: true });
+      window.setTimeout(() => navigate(redirectPath, { replace: true }), 500);
     }
-  }, [status, isLoading, customerUser, navigate, redirectPath]);
+  }, [status, navigate, redirectPath]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 px-6 text-center">

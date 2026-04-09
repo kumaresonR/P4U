@@ -5,10 +5,21 @@ import { Request } from 'express';
 // ─── Dashboard Stats ─────────────────────────────────────────────────────────
 
 export const getDashboardStats = async () => {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
   const [
     total_customers, total_vendors, total_orders, orders_revenue,
     pending_settlements, active_products, total_classifieds,
-    total_properties, recent_orders,
+    total_properties, total_services, recent_orders,
+    // Trend counts (last 30 days vs previous 30 days)
+    customers_recent, customers_prev,
+    vendors_recent, vendors_prev,
+    orders_recent, orders_prev,
+    revenue_recent, revenue_prev,
+    // Charts
+    category_distribution,
   ] = await Promise.all([
     prisma.customer.count(),
     prisma.vendor.count(),
@@ -18,6 +29,7 @@ export const getDashboardStats = async () => {
     prisma.product.count({ where: { status: 'active' } }),
     prisma.classifiedAd.count(),
     prisma.property.count(),
+    prisma.service.count({ where: { status: 'active' } }),
     prisma.order.findMany({
       take: 10, orderBy: { created_at: 'desc' },
       include: {
@@ -25,18 +37,124 @@ export const getDashboardStats = async () => {
         vendor: { select: { business_name: true } },
       },
     }),
+    // Trends
+    prisma.customer.count({ where: { created_at: { gte: thirtyDaysAgo } } }),
+    prisma.customer.count({ where: { created_at: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    prisma.vendor.count({ where: { created_at: { gte: thirtyDaysAgo } } }),
+    prisma.vendor.count({ where: { created_at: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    prisma.order.count({ where: { created_at: { gte: thirtyDaysAgo } } }),
+    prisma.order.count({ where: { created_at: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    prisma.order.aggregate({ _sum: { total: true }, where: { status: { in: ['completed', 'delivered'] }, created_at: { gte: thirtyDaysAgo } } }),
+    prisma.order.aggregate({ _sum: { total: true }, where: { status: { in: ['completed', 'delivered'] }, created_at: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    // Category distribution
+    prisma.product.groupBy({ by: ['category_id'], _count: true, where: { status: 'active' } }),
   ]);
+
+  // Calculate trend percentages
+  const calcTrend = (recent: number, prev: number) => prev === 0 ? (recent > 0 ? 100 : 0) : Math.round(((recent - prev) / prev) * 100 * 10) / 10;
+
+  const revenueRecent = (revenue_recent._sum.total || 0) as number;
+  const revenuePrev = (revenue_prev._sum.total || 0) as number;
+
+  // Build revenue chart (last 30 days)
+  const revenueChartOrders = await prisma.order.findMany({
+    where: { status: { in: ['completed', 'delivered'] }, created_at: { gte: thirtyDaysAgo } },
+    select: { total: true, created_at: true },
+  });
+  const revenueByDay: Record<string, { revenue: number; orders: number }> = {};
+  for (let d = 0; d < 30; d++) {
+    const date = new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
+    const key = date.toISOString().slice(0, 10);
+    revenueByDay[key] = { revenue: 0, orders: 0 };
+  }
+  for (const o of revenueChartOrders) {
+    const key = o.created_at.toISOString().slice(0, 10);
+    if (revenueByDay[key]) {
+      revenueByDay[key].revenue += Number(o.total) || 0;
+      revenueByDay[key].orders += 1;
+    }
+  }
+  const revenue_chart = Object.entries(revenueByDay)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, v]) => ({ date, ...v }));
+
+  // Build category distribution with names
+  const catIds = category_distribution.map((c) => c.category_id).filter((id): id is string => id !== null);
+  const categories = catIds.length > 0
+    ? await prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, name: true } })
+    : [];
+  const catMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
+
+  // Top vendors by revenue
+  const topVendorsRaw = await prisma.order.groupBy({
+    by: ['vendor_id'],
+    _sum: { total: true },
+    _count: true,
+    where: { status: { in: ['completed', 'delivered'] } },
+    orderBy: { _sum: { total: 'desc' } },
+    take: 5,
+  });
+  const vendorIds = topVendorsRaw.map((v) => v.vendor_id).filter((id): id is string => id !== null);
+  const vendors = vendorIds.length > 0
+    ? await prisma.vendor.findMany({ where: { id: { in: vendorIds } }, select: { id: true, business_name: true } })
+    : [];
+  const vendorMap: Record<string, string> = Object.fromEntries(vendors.map((v) => [v.id, v.business_name]));
+
+  // Format recent orders for frontend
+  const formattedOrders = recent_orders.map((o: any) => ({
+    id: o.id,
+    customer_name: o.customer?.name || 'Unknown',
+    vendor_name: o.vendor?.business_name || 'Unknown',
+    total: Number(o.total) || 0,
+    status: o.status,
+    created_at: o.created_at,
+  }));
 
   return {
     total_customers,
     total_vendors,
     total_orders,
-    total_revenue: orders_revenue._sum.total || 0,
+    total_revenue: Number(orders_revenue._sum.total) || 0,
     pending_settlements,
     active_products,
     total_classifieds,
     total_properties,
-    recent_orders,
+    total_services,
+    active_ads: total_classifieds,
+    customers_trend: calcTrend(customers_recent, customers_prev),
+    vendors_trend: calcTrend(vendors_recent, vendors_prev),
+    orders_trend: calcTrend(orders_recent, orders_prev),
+    revenue_trend: calcTrend(revenueRecent, revenuePrev),
+    recent_orders: formattedOrders,
+    revenue_chart,
+    top_vendors: topVendorsRaw.map((v) => ({
+      name: (v.vendor_id ? vendorMap[v.vendor_id] : null) || 'Unknown',
+      revenue: Number(v._sum.total) || 0,
+      orders: v._count,
+    })),
+    category_distribution: category_distribution.map((c) => ({
+      name: (c.category_id ? catMap[c.category_id] : null) || 'Other',
+      count: c._count,
+    })),
+  };
+};
+
+// ─── Customer Stats ──────────────────────────────────────────────────────────
+
+export const getCustomerStats = async () => {
+  const [total, active, inactive, suspended, totalWallet] = await Promise.all([
+    prisma.customer.count(),
+    prisma.customer.count({ where: { status: 'active' } }),
+    prisma.customer.count({ where: { status: 'inactive' } }),
+    prisma.customer.count({ where: { status: 'suspended' } }),
+    prisma.customer.aggregate({ _sum: { wallet_points: true } }),
+  ]);
+  return {
+    total_customers: total,
+    active_customers: active,
+    inactive_customers: inactive,
+    suspended_customers: suspended,
+    total_wallet_points: totalWallet._sum.wallet_points || 0,
   };
 };
 

@@ -86,10 +86,11 @@ export default function CustomerLoginPage() {
       // Call our backend instead of Supabase edge function
       const data: any = await api.post('/auth/otp/verify', { firebase_token: idToken }, { auth: false });
       tokenStore.set(data.access_token, data.refresh_token);
-      localStorage.setItem('p4u_user', JSON.stringify({ ...data.user, portal: 'customer' }));
+      const user = data.user || data.customer;
+      localStorage.setItem('p4u_user', JSON.stringify({ ...user, portal: 'customer' }));
 
-      toast.success("Login successful! 🎉");
-      navigate("/app", { replace: true });
+      toast.success("Login successful!");
+      window.location.replace("/app");
     } catch (err: any) {
       if (err.code === "auth/invalid-verification-code") toast.error("Invalid OTP.");
       else if (err.code === "auth/code-expired") toast.error("OTP expired. Please resend.");

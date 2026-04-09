@@ -207,7 +207,7 @@ export const api = {
   },
 
   updateCustomer: async (id: string, data: Partial<User>) => {
-    await http.patch(`/customers/${id}`, data);
+    await http.put(`/customers/${id}`, data);
     return { success: true };
   },
 
@@ -228,12 +228,12 @@ export const api = {
   },
 
   updateVendorStatus: async (id: string, status: string) => {
-    await http.patch(`/vendors/${id}`, { status });
+    await http.put(`/vendors/${id}`, { status });
     return { success: true };
   },
 
   updateVendor: async (id: string, data: Partial<Vendor>) => {
-    await http.patch(`/vendors/${id}`, data);
+    await http.put(`/vendors/${id}`, data);
     return { success: true };
   },
 
@@ -254,7 +254,7 @@ export const api = {
   },
 
   updateProduct: async (id: string, data: Partial<Product>) => {
-    await http.patch(`/products/${id}`, data);
+    await http.put(`/products/${id}`, data);
     return { success: true };
   },
 
@@ -287,11 +287,11 @@ export const api = {
   },
 
   getServiceCategories: async () => {
-    return http.get<Category[]>('/categories', { type: 'service' } as any);
+    return http.get<Category[]>('/master/categories', { type: 'service' } as any);
   },
 
   updateService: async (id: string, data: Partial<Service>) => {
-    await http.patch(`/services/${id}`, data);
+    await http.put(`/services/${id}`, data);
     return { success: true };
   },
 
@@ -312,7 +312,7 @@ export const api = {
   },
 
   updateOrderStatus: async (id: string, status: Order['status']) => {
-    await http.patch(`/orders/${id}/status`, { status });
+    await http.put(`/orders/${id}/status`, { status });
     return { success: true };
   },
 
@@ -328,7 +328,7 @@ export const api = {
   },
 
   settleSettlement: async (id: string) => {
-    await http.patch(`/orders/settlements/${id}/settle`, {});
+    await http.put(`/orders/settlements/${id}/settle`, {});
     return { success: true };
   },
 
@@ -375,7 +375,7 @@ export const api = {
   },
 
   bulkDeleteCategories: async (ids: string[]) => {
-    await http.post('/categories/bulk-delete', { ids });
+    await http.post('/master/categories/bulk-delete', { ids });
     return { success: true };
   },
 
@@ -401,7 +401,7 @@ export const api = {
   },
 
   updateClassifiedStatus: async (id: string, status: ClassifiedAd['status']) => {
-    await http.patch(`/classifieds/${id}`, { status });
+    await http.put(`/classifieds/${id}`, { status });
     return { success: true };
   },
 
@@ -411,7 +411,7 @@ export const api = {
   },
 
   getCustomerClassifieds: async (_userId: string) => {
-    return http.get<ClassifiedAd[]>('/classifieds/mine');
+    return http.get<ClassifiedAd[]>('/classifieds/my');
   },
 
   getBrowseClassifieds: async (params: { category?: string; search?: string }) => {
@@ -439,32 +439,32 @@ export const api = {
   // ─── Categories ──────────────────────────────────────────────────────────────
 
   getCategories: async () => {
-    return http.get<Category[]>('/categories');
+    return http.get<Category[]>('/master/categories');
   },
 
   updateCategory: async (id: string, data: Partial<Category>) => {
-    await http.patch(`/categories/${id}`, data);
+    await http.put(`/master/categories/${id}`, data);
     return { success: true };
   },
 
   createCategory: async (data: Partial<Category>) => {
-    const category = await http.post<Category>('/categories', data);
+    const category = await http.post<Category>('/master/categories', data);
     return { success: true, category };
   },
 
   deleteCategory: async (id: string) => {
-    await http.delete(`/categories/${id}`);
+    await http.delete(`/master/categories/${id}`);
     return { success: true };
   },
 
   // ─── CMS / Banners ───────────────────────────────────────────────────────────
 
   getBanners: async () => {
-    return http.get<Banner[]>('/banners');
+    return http.get<Banner[]>('/admin/banners');
   },
 
   updateBanner: async (id: string, data: Partial<Banner>) => {
-    await http.patch(`/banners/${id}`, data);
+    await http.put(`/admin/banners/${id}`, data);
     return { success: true };
   },
 
@@ -475,51 +475,51 @@ export const api = {
   },
 
   updatePlatformVariable: async (id: string, value: string) => {
-    await http.patch(`/master/platform-variables/${id}`, { value });
+    await http.put(`/master/platform-variables/${id}`, { value });
     return { success: true };
   },
 
   // ─── Occupations ─────────────────────────────────────────────────────────────
 
   getOccupations: async (params: { page?: number; per_page?: number; search?: string; status?: string }) => {
-    return paginate<Occupation>('/occupations', params);
+    return paginate<Occupation>('/master/occupations', params);
   },
 
   updateOccupation: async (id: string, data: Partial<Occupation>) => {
-    await http.patch(`/occupations/${id}`, data);
+    await http.put(`/master/occupations/${id}`, data);
     return { success: true };
   },
 
   createOccupation: async (data: Partial<Occupation>) => {
-    const occupation = await http.post<Occupation>('/occupations', data);
+    const occupation = await http.post<Occupation>('/master/occupations', data);
     return { success: true, occupation };
   },
 
   deleteOccupation: async (id: string) => {
-    await http.delete(`/occupations/${id}`);
+    await http.delete(`/master/occupations/${id}`);
     return { success: true };
   },
 
   getActiveOccupations: async () => {
-    return http.get<{ id: string; name: string }[]>('/occupations', { status: 'active', per_page: 1000 } as any);
+    return http.get<{ id: string; name: string }[]>('/master/occupations', { status: 'active', per_page: 1000 } as any);
   },
 
   // ─── Geography ───────────────────────────────────────────────────────────────
 
   getStates: async () => {
-    return http.get<{ id: string; name: string; code: string }[]>('/states');
+    return http.get<{ id: string; name: string; code: string }[]>('/master/states');
   },
 
   getDistricts: async (stateId: string) => {
-    return http.get<{ id: string; name: string; state_id: string }[]>('/districts', { state_id: stateId } as any);
+    return http.get<{ id: string; name: string; state_id: string }[]>('/master/districts', { state_id: stateId } as any);
   },
 
   getCities: async (params: { page?: number; per_page?: number; search?: string; status?: string }) => {
-    return paginate<City>('/cities', params);
+    return paginate<City>('/master/cities', params);
   },
 
   getAreas: async (params: { page?: number; per_page?: number; search?: string; status?: string; city_id?: string }) => {
-    return paginate<Area>('/areas', params);
+    return paginate<Area>('/master/areas', params);
   },
 
   // ─── Tax Config ──────────────────────────────────────────────────────────────
@@ -547,7 +547,7 @@ export const api = {
   },
 
   updateWebsiteQueryStatus: async (id: string, status: WebsiteQuery['status']) => {
-    await http.patch(`/admin/queries/${id}`, { status });
+    await http.put(`/admin/queries/${id}`, { status });
     return { success: true };
   },
 
@@ -646,7 +646,7 @@ export const api = {
   },
 
   getVendorProfile: async (_vendorId: string) => {
-    return http.get<any>('/vendor/profile');
+    return http.get<any>('/vendor/me');
   },
 
   // ─── Reports ─────────────────────────────────────────────────────────────────
@@ -682,7 +682,7 @@ export const api = {
   },
 
   resolveTicket: async (id: string, status: string, resolution: string) => {
-    await http.patch(`/admin/support-tickets/${id}`, { status, resolution_notes: resolution });
+    await http.put(`/admin/support-tickets/${id}`, { status, resolution_notes: resolution });
     return { success: true };
   },
 

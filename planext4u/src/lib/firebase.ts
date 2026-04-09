@@ -14,6 +14,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const firebaseAuth = getAuth(app);
 
+// Use custom domain for auth to avoid third-party cookie issues
+firebaseAuth.useDeviceLanguage();
+
 const ALLOWED_HOSTNAMES = ["localhost", "127.0.0.1", "planext4u.lovable.app", "www.planext4u.net", "planext4u.net"];
 
 function isAllowedHostname(host: string): boolean {
@@ -54,6 +57,7 @@ export function ensureFirebaseHostname(): boolean {
 }
 
 let confirmationResultGlobal: ConfirmationResult | null = null;
+let recaptchaVerifier: RecaptchaVerifier | null = null;
 
 function getOrCreateRecaptchaContainer(): HTMLElement {
   const existing = document.getElementById("recaptcha-container");
@@ -64,8 +68,6 @@ function getOrCreateRecaptchaContainer(): HTMLElement {
   return el;
 }
 
-let recaptchaReady: Promise<void> | null = null;
-
 export function setupRecaptcha(): RecaptchaVerifier {
   if (!isAllowedHostname(window.location.hostname)) {
     throw Object.assign(new Error("Phone OTP is only available on the published app."), {
@@ -73,27 +75,23 @@ export function setupRecaptcha(): RecaptchaVerifier {
     });
   }
 
-  if ((window as any).recaptchaVerifier) {
-    try {
-      (window as any).recaptchaVerifier.clear();
-    } catch {
-      // ignore if already cleared
-    }
-    (window as any).recaptchaVerifier = null;
-    recaptchaReady = null;
-  }
+  // Clean up any existing verifier
+  clearRecaptcha();
 
-  // Remove old container to get a fresh one
-  const old = document.getElementById("recaptcha-container");
-  if (old) old.remove();
+  // Create fresh container
   getOrCreateRecaptchaContainer();
 
-  const verifier = new RecaptchaVerifier(firebaseAuth, "recaptcha-container", {
+  recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, "recaptcha-container", {
     size: "invisible",
+    callback: () => {
+      console.log("reCAPTCHA solved");
+    },
+    "expired-callback": () => {
+      console.log("reCAPTCHA expired");
+    },
   });
-  (window as any).recaptchaVerifier = verifier;
-  recaptchaReady = verifier.render().then(() => {}).catch(() => {});
-  return verifier;
+
+  return recaptchaVerifier;
 }
 
 /**
@@ -101,15 +99,7 @@ export function setupRecaptcha(): RecaptchaVerifier {
  * Call this on page mount.
  */
 export function preRenderRecaptcha() {
-  if (!isAllowedHostname(window.location.hostname)) return;
-  if ((window as any).recaptchaVerifier) return;
-  getOrCreateRecaptchaContainer();
-  const verifier = new RecaptchaVerifier(firebaseAuth, "recaptcha-container", {
-    size: "invisible",
-  });
-  (window as any).recaptchaVerifier = verifier;
-  // Pre-render and track readiness
-  recaptchaReady = verifier.render().then(() => {}).catch(() => {});
+  // Skip pre-rendering — we create fresh verifier on each sendOTP call
 }
 
 export async function sendOTP(phoneNumber: string) {
@@ -124,18 +114,18 @@ export async function sendOTP(phoneNumber: string) {
     await signOut(firebaseAuth).catch(() => undefined);
   }
 
-  // Wait for pre-rendered verifier to be ready
-  let appVerifier = (window as any).recaptchaVerifier;
-  if (appVerifier && recaptchaReady) {
-    await recaptchaReady;
-  } else {
-    appVerifier = setupRecaptcha();
-    if (recaptchaReady) await recaptchaReady;
-  }
+  // Create fresh verifier
+  const verifier = setupRecaptcha();
 
-  const result = await signInWithPhoneNumber(firebaseAuth, phoneNumber, appVerifier);
-  confirmationResultGlobal = result;
-  return result;
+  try {
+    const result = await signInWithPhoneNumber(firebaseAuth, phoneNumber, verifier);
+    confirmationResultGlobal = result;
+    return result;
+  } catch (err) {
+    // Clean up on failure so next attempt starts fresh
+    clearRecaptcha();
+    throw err;
+  }
 }
 
 export async function verifyOTP(otp: string) {
@@ -154,17 +144,7 @@ export async function getFirebaseIdToken(): Promise<string> {
 
 export async function resetPhoneAuth() {
   confirmationResultGlobal = null;
-  recaptchaReady = null;
-  if ((window as any).recaptchaVerifier) {
-    try {
-      (window as any).recaptchaVerifier.clear();
-    } catch {
-      // ignore
-    }
-    (window as any).recaptchaVerifier = null;
-  }
-  const el = document.getElementById("recaptcha-container");
-  if (el) el.remove();
+  clearRecaptcha();
   if (firebaseAuth.currentUser) {
     await signOut(firebaseAuth).catch(() => undefined);
   }
@@ -172,14 +152,13 @@ export async function resetPhoneAuth() {
 
 export function clearRecaptcha() {
   confirmationResultGlobal = null;
-  recaptchaReady = null;
-  if ((window as any).recaptchaVerifier) {
+  if (recaptchaVerifier) {
     try {
-      (window as any).recaptchaVerifier.clear();
+      recaptchaVerifier.clear();
     } catch {
       // ignore
     }
-    (window as any).recaptchaVerifier = null;
+    recaptchaVerifier = null;
   }
   const el = document.getElementById("recaptcha-container");
   if (el) el.remove();

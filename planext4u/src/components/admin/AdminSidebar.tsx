@@ -96,6 +96,7 @@ const portalLinks: NavItem[] = [
 
 const ROLE_COLORS: Record<UserRole, string> = {
   admin: 'bg-primary/15 text-primary',
+  super_admin: 'bg-primary/15 text-primary',
   finance: 'bg-success/15 text-success',
   sales: 'bg-info/15 text-info',
 };
@@ -110,7 +111,7 @@ interface NavGroupProps {
 function NavGroup({ label, items, collapsed, userRole }: NavGroupProps) {
   const filteredItems = items.filter(item => {
     if (!item.roles) return true;
-    if (userRole === 'admin') return true;
+    if (userRole === 'admin' || userRole === 'super_admin') return true;
     return item.roles.includes(userRole);
   });
 

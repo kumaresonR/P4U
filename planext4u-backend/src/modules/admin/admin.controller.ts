@@ -4,6 +4,7 @@ import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response';
 import { AuthRequest } from '../../types';
 
 export const dashboard      = async (_: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getDashboardStats()); } catch (e) { next(e); } };
+export const customerStats  = async (_: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getCustomerStats()); } catch (e) { next(e); } };
 
 // Reports
 export const ordersReport            = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getOrdersReport(req)); } catch (e) { next(e); } };

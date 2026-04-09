@@ -40,11 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data: any = await api.post('/auth/admin/login', { email, password }, { auth: false });
       tokenStore.set(data.access_token, data.refresh_token);
 
+      const u = data.user || data.admin;
       const authUser: AuthUser = {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        role: data.user.role as UserRole,
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role as UserRole,
         portal: 'admin',
       };
       setUser(authUser);
@@ -62,19 +63,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data: any = await api.post('/auth/customer/login', { email, password }, { auth: false });
       tokenStore.set(data.access_token, data.refresh_token);
 
+      const u = data.user || data.customer;
       const cu: CustomerUser = {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        mobile: data.user.mobile || '',
-        customer_id: data.user.id,
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        mobile: u.mobile || '',
+        customer_id: u.id,
         portal: 'customer',
       };
       setCustomerUser(cu);
       localStorage.setItem('p4u_user', JSON.stringify(cu));
 
-      initPushNotifications(data.user.id);
-      linkPushTokenToUser(data.user.id);
+      initPushNotifications(u.id);
+      linkPushTokenToUser(u.id);
     } finally {
       setIsLoading(false);
     }
@@ -88,12 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data: any = await api.post('/auth/vendor/login', { email, password, type: 'vendor' }, { auth: false });
       tokenStore.set(data.access_token, data.refresh_token);
 
+      const u = data.user || data.vendor;
       const vu: VendorUser = {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        business_name: data.user.business_name || '',
-        vendor_id: data.user.id,
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        business_name: u.business_name || '',
+        vendor_id: u.id,
         portal: 'vendor',
       };
       setVendorUser(vu);
@@ -131,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasAccess = useCallback((allowedRoles: UserRole[]) => {
     if (!user) return false;
-    if (user.role === 'admin') return true;
+    if (user.role === 'admin' || user.role === 'super_admin') return true;
     return allowedRoles.includes(user.role);
   }, [user]);
 

@@ -49,7 +49,7 @@ export default function VendorServicesPage() {
 
   const { data: categories } = useQuery({
     queryKey: ["serviceCategories"],
-    queryFn: () => http.get<any[]>('/categories', { type: 'service', status: 'active' } as any, { auth: false }),
+    queryFn: () => http.get<any[]>('/master/categories', { type: 'service', status: 'active' } as any, { auth: false }),
   });
 
   const saveMutation = useMutation({

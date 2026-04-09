@@ -57,7 +57,7 @@ export default function VendorProductsPage() {
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
-    queryFn: () => http.get<any[]>('/categories', { status: 'active' } as any, { auth: false }),
+    queryFn: () => http.get<any[]>('/master/categories', { status: 'active' } as any, { auth: false }),
   });
 
   const saveMutation = useMutation({

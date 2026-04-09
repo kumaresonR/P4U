@@ -23,6 +23,7 @@ import commerceRoutes     from '../modules/commerce/commerce.routes';
 import profileRoutes      from '../modules/profile/profile.routes';
 import contentRoutes      from '../modules/content/content.routes';
 import vendorAppRoutes    from '../modules/vendor-app/vendor.routes';
+import vendorApplicationsRoutes from '../modules/vendor-applications/vendor-applications.routes';
 
 const router = Router();
 
@@ -51,5 +52,6 @@ router.use('/commerce',      commerceRoutes);
 router.use('/profile',       profileRoutes);
 router.use('/content',       contentRoutes);
 router.use('/vendor',        vendorAppRoutes);  // singular /vendor (user web)
+router.use('/vendor-applications', vendorApplicationsRoutes);
 
 export default router;

@@ -44,7 +44,7 @@ export function ServiceModal({ service, open, onOpenChange, mode, onSave, onCrea
 
   const { data: dbCategories } = useQuery({
     queryKey: ["serviceCategoriesForModal"],
-    queryFn: () => http.get<any[]>('/categories', { type: 'service', status: 'active' } as any, { auth: false }),
+    queryFn: () => http.get<any[]>('/master/categories', { type: 'service', status: 'active' } as any, { auth: false }),
   });
 
   useEffect(() => {

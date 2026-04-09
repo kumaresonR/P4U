@@ -18,6 +18,10 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
   try { sendSuccess(res, await svc.getCustomer(req.user!.id)); } catch (e) { next(e); }
 };
 
+export const create = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.createCustomer(req.body), 'Created', 201); } catch (e) { next(e); }
+};
+
 export const update = async (req: Request, res: Response, next: NextFunction) => {
   try { sendSuccess(res, await svc.updateCustomer(req.params.id, req.body)); } catch (e) { next(e); }
 };

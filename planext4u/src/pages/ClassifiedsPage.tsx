@@ -47,14 +47,14 @@ export default function ClassifiedsPage() {
 
   const handleSave = async (id: string, updates: Partial<ClassifiedAd>) => {
     const { api: http } = await import("@/lib/apiClient");
-    await http.patch(`/classified-ads/${id}`, updates);
+    await http.put(`/classifieds/${id}`, updates);
     toast.success("Ad updated");
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
     const { api: http } = await import("@/lib/apiClient");
-    await http.delete(`/classified-ads/${id}`);
+    await http.delete(`/classifieds/${id}`);
     toast.success("Ad deleted");
     fetchData();
   };
