@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt';
 import { redis } from '../config/redis';
 import { sendError } from '../utils/response';
-import { AuthRequest } from '../types';
+import { AuthRequest, AuthUser } from '../types';
 
 export const authenticate = async (
   req: AuthRequest,
@@ -22,7 +22,7 @@ export const authenticate = async (
 
   try {
     const payload = verifyAccessToken(token);
-    req.user = { id: payload.id, role: payload.role as AuthRequest['user']['role'], email: payload.email, mobile: payload.mobile };
+    req.user = { id: payload.id, role: payload.role as AuthUser['role'], email: payload.email, mobile: payload.mobile };
     next();
   } catch {
     return sendError(res, 'Invalid or expired token', 401);
@@ -39,7 +39,7 @@ export const optionalAuth = async (
     const token = header.split(' ')[1];
     try {
       const payload = verifyAccessToken(token);
-      req.user = { id: payload.id, role: payload.role as AuthRequest['user']['role'] };
+      req.user = { id: payload.id, role: payload.role as AuthUser['role'] };
     } catch {
       // ignore — optional
     }

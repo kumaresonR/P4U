@@ -1,10 +1,10 @@
 import { Queue, Worker, Job } from 'bullmq';
-import { redis } from '../config/redis';
+import { bullConnection } from '../config/redis';
 import { sendPushToTokens, sendPushToToken } from '../services/firebase';
 import { logger } from '../utils/logger';
 
 export const notificationQueue = new Queue('notifications', {
-  connection: redis,
+  connection: bullConnection,
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: 'exponential', delay: 3000 },
@@ -31,7 +31,7 @@ export const startNotificationWorker = () => {
       const { tokens, title, body, imageUrl, data } = job.data;
       await sendPushToTokens(tokens, { title, body, imageUrl, data });
     },
-    { connection: redis, concurrency: 10 }
+    { connection: bullConnection, concurrency: 10 }
   );
 
   worker.on('completed', (job) => logger.info({ jobId: job.id }, 'Push notification sent'));

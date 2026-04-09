@@ -6,9 +6,15 @@ export const redis = new Redis(env.REDIS_URL, {
   lazyConnect: true,
 });
 
+// BullMQ requires maxRetriesPerRequest: null
+export const bullConnection = new Redis(env.REDIS_URL, {
+  maxRetriesPerRequest: null,
+});
+
 redis.on('connect', () => console.log('Redis connected'));
 redis.on('error', (err) => console.error('Redis error:', err));
 
 export async function connectRedis() {
+  if (redis.status === 'ready' || redis.status === 'connecting') return;
   await redis.connect();
 }

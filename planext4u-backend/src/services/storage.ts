@@ -1,18 +1,18 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Storage } from '@google-cloud/storage';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from '../config/env';
 
-const s3 = new S3Client({
-  region: env.AWS_REGION,
+const storage = new Storage({
+  projectId: env.GCS_PROJECT_ID || env.FIREBASE_PROJECT_ID,
   credentials: {
-    accessKeyId: env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: env.AWS_SECRET_ACCESS_KEY || '',
+    client_email: env.FIREBASE_CLIENT_EMAIL,
+    private_key: env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   },
 });
 
-const BUCKET = env.AWS_S3_BUCKET || '';
+const BUCKET = env.GCS_BUCKET || '';
+const bucket = storage.bucket(BUCKET);
 
 export const uploadImage = async (
   buffer: Buffer,
@@ -25,16 +25,13 @@ export const uploadImage = async (
     .toBuffer();
 
   const key = `${folder}/${uuidv4()}.jpg`;
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Body: compressed,
-      ContentType: 'image/jpeg',
-      ACL: 'public-read',
-    })
-  );
-  return `https://${BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
+  const file = bucket.file(key);
+  await file.save(compressed, {
+    contentType: 'image/jpeg',
+    public: true,
+    metadata: { cacheControl: 'public, max-age=31536000' },
+  });
+  return `https://storage.googleapis.com/${BUCKET}/${key}`;
 };
 
 export const uploadFile = async (
@@ -45,21 +42,18 @@ export const uploadFile = async (
 ): Promise<{ url: string; key: string }> => {
   const ext = originalName.split('.').pop();
   const key = `${folder}/${uuidv4()}.${ext}`;
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Body: buffer,
-      ContentType: mimetype,
-      ACL: 'public-read',
-    })
-  );
+  const file = bucket.file(key);
+  await file.save(buffer, {
+    contentType: mimetype,
+    public: true,
+    metadata: { cacheControl: 'public, max-age=31536000' },
+  });
   return {
-    url: `https://${BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/${key}`,
+    url: `https://storage.googleapis.com/${BUCKET}/${key}`,
     key,
   };
 };
 
 export const deleteFile = async (key: string): Promise<void> => {
-  await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+  await bucket.file(key).delete({ ignoreNotFound: true });
 };

@@ -94,7 +94,7 @@ model Customer {
   id                   String    @id @default(uuid())
   name                 String
   mobile               String    @default("")
-  email                String    @default("")
+  email                String    @unique @default("")
   password_hash        String?
   avatar               String?   @default("")
   city_id              String?
@@ -102,7 +102,7 @@ model Customer {
   latitude             Float     @default(0)
   longitude            Float     @default(0)
   wallet_points        Int       @default(0)
-  referral_code        String    @default("")
+  referral_code        String    @unique @default("")
   referred_by          String?
   status               String    @default("active")
   occupation           String?

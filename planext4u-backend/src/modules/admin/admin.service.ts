@@ -150,7 +150,7 @@ export const getReferralsReport = async (req: Request) => {
     };
   }
   const [total, recent] = await Promise.all([
-    prisma.customer.count({ where: { ...where, referral_code: { not: null } } }),
+    prisma.customer.count({ where: { ...where, referral_code: { not: '' } } }),
     prisma.customer.findMany({
       where: { ...where, referred_by: { not: null } },
       select: { id: true, name: true, mobile: true, referred_by: true, created_at: true },

@@ -280,7 +280,7 @@ export const getMyPropertyChatThreads = async (userId: string): Promise<Property
     where: { sender_id: userId },
     include: { property: { include: { user: { select: { id: true, name: true } } } } },
     orderBy: { created_at: 'desc' },
-  })) as Msg[];
+  })) as unknown as Msg[];
   for (const m of sent) {
     const ownerId = m.property.user_id;
     const key = `${ownerId}_${m.property_id}`;

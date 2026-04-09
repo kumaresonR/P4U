@@ -35,7 +35,7 @@ export const sendError = (
   details?: unknown
 ) => {
   const response: ApiResponse = { success: false, error };
-  if (details) (response as Record<string, unknown>).details = details;
+  if (details) (response as unknown as Record<string, unknown>).details = details;
   return res.status(statusCode).json(response);
 };
 

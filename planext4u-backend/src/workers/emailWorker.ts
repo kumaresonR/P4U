@@ -1,12 +1,12 @@
 import { Queue, Worker, Job } from 'bullmq';
-import { redis } from '../config/redis';
+import { bullConnection } from '../config/redis';
 import { sendEmail } from '../services/email';
 import { logger } from '../utils/logger';
 
 // ─── Queue ────────────────────────────────────────────────────────────────────
 
 export const emailQueue = new Queue('email', {
-  connection: redis,
+  connection: bullConnection,
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: 'exponential', delay: 5000 },
@@ -36,7 +36,7 @@ export const startEmailWorker = () => {
       logger.info({ to, subject }, `Processing email job ${job.id}`);
       await sendEmail({ to, subject, html });
     },
-    { connection: redis, concurrency: 5 }
+    { connection: bullConnection, concurrency: 5 }
   );
 
   worker.on('completed', (job) => {
