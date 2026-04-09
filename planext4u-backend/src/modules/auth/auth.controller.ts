@@ -6,7 +6,8 @@ import { AuthRequest } from '../../types';
 export const verifyFirebaseOtp = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { firebase_token, name, referral_code } = req.body;
-    const result = await authService.verifyFirebaseOtp(firebase_token, name, referral_code);
+    const portal = (req.query.portal as string) || 'customer';
+    const result = await authService.verifyFirebaseOtp(firebase_token, name, referral_code, portal);
     sendSuccess(res, result, 'Login successful');
   } catch (err) { next(err); }
 };

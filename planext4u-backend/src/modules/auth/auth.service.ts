@@ -20,12 +20,27 @@ export const verifyFirebaseOtp = async (
   firebaseToken: string,
   name?: string,
   referralCode?: string,
+  portal: string = 'customer',
 ) => {
   const { phone } = await verifyFirebaseToken(firebaseToken);
 
   // Normalize: strip leading country code for DB storage
   const mobile = phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10);
 
+  // ── Vendor portal OTP login ───────────────────────────────────────────────
+  if (portal === 'vendor') {
+    const vendor = await prisma.vendor.findFirst({
+      where: { OR: [{ mobile }, { mobile: phone }] },
+    });
+    if (!vendor) throw new AppError('No vendor account found for this phone number. Please register first.', 404);
+    if (vendor.status === 'rejected') throw new AppError('Vendor account rejected', 403);
+    if (vendor.status === 'suspended') throw new AppError('Vendor account suspended', 403);
+    const tokens = generateTokenPair({ id: vendor.id, role: 'vendor', mobile });
+    const { password_hash: _, fcm_tokens: __, ...safeVendor } = vendor as any;
+    return { vendor: safeVendor, ...tokens };
+  }
+
+  // ── Customer portal OTP login / auto-register ─────────────────────────────
   let customer = await prisma.customer.findFirst({
     where: { OR: [{ mobile }, { mobile: phone }] },
   });

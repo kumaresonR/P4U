@@ -13,6 +13,7 @@ export const bullConnection = new Redis(env.REDIS_URL, {
 
 redis.on('connect', () => console.log('Redis connected'));
 redis.on('error', (err) => console.error('Redis error:', err));
+bullConnection.on('error', (err) => console.error('BullMQ Redis error:', err));
 
 export async function connectRedis() {
   if (redis.status === 'ready' || redis.status === 'connecting') return;

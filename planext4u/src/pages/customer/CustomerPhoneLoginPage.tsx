@@ -79,7 +79,7 @@ export default function CustomerPhoneLoginPage() {
       const idToken = await getFirebaseIdToken();
 
       // Step 3: Call our backend to verify firebase token
-      const data: any = await api.post('/auth/otp/verify', { firebase_token: idToken }, { auth: false });
+      const data: any = await api.post('/auth/otp/verify?portal=customer', { firebase_token: idToken }, { auth: false });
       tokenStore.set(data.access_token, data.refresh_token);
       const user = data.customer || data.user;
       localStorage.setItem('p4u_user', JSON.stringify({ ...user, portal: 'customer' }));

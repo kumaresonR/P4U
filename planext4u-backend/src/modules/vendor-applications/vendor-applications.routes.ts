@@ -7,7 +7,7 @@ import { isCustomer } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
 import { AppError } from '../../middleware/errorHandler';
 import { AuthRequest } from '../../types';
-import type { VendorApplication } from '@prisma/client';
+import type { VendorApplication, Prisma } from '@prisma/client';
 
 const TOP_LEVEL = new Set([
   'name', 'business_name', 'email', 'phone', 'mobile', 'user_id',
@@ -112,7 +112,7 @@ router.post('/', optionalAuth, validate(createBodySchema), async (req: AuthReque
         category_id: uuid(body.category_id) ? String(body.category_id) : null,
         city_id: uuid(body.city_id) ? String(body.city_id) : null,
         area_id: uuid(body.area_id) ? String(body.area_id) : null,
-        documents,
+        documents: documents as Prisma.InputJsonValue,
         status: typeof body.status === 'string' ? body.status : 'pending',
       },
     });
@@ -156,7 +156,7 @@ router.patch('/:id', authenticate, isCustomer, validate(patchBodySchema), async 
           : existing.category_id,
         city_id: body.city_id !== undefined ? (uuid(body.city_id) ? String(body.city_id) : null) : existing.city_id,
         area_id: body.area_id !== undefined ? (uuid(body.area_id) ? String(body.area_id) : null) : existing.area_id,
-        documents: mergedDoc,
+        documents: mergedDoc as Prisma.InputJsonValue,
         ...(typeof body.status === 'string' ? { status: body.status } : {}),
       },
     });

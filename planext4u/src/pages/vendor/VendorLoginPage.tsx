@@ -68,14 +68,15 @@ export default function VendorLoginPage() {
     try {
       await verifyOTP(otp);
       const idToken = await getFirebaseIdToken();
-      const data: any = await api.post('/auth/otp/verify', { firebase_token: idToken }, { auth: false });
+      const data: any = await api.post('/auth/otp/verify?portal=vendor', { firebase_token: idToken }, { auth: false });
       tokenStore.set(data.access_token, data.refresh_token);
-      const user = data.vendor || data.customer || data.user;
+      const user = data.vendor || data.user;
       localStorage.setItem('p4u_user', JSON.stringify({ ...user, portal: 'vendor' }));
       toast.success("Welcome to Vendor Portal!");
       window.location.replace("/vendor");
     } catch (err: any) {
-      if (err.code === "auth/invalid-verification-code") toast.error("Invalid OTP.");
+      if (err.code === "auth/invalid-verification-code") toast.error("Invalid OTP. Please try again.");
+      else if (err.code === "auth/code-expired") toast.error("OTP expired. Please resend.");
       else toast.error(err.message || "Verification failed");
     } finally { setLoading(false); }
   };

@@ -16,9 +16,13 @@ export const authenticate = async (
 
   const token = header.split(' ')[1];
 
-  // Check blacklist
-  const blacklisted = await redis.get(`blacklist:${token}`);
-  if (blacklisted) return sendError(res, 'Token revoked', 401);
+  // Check blacklist — skip gracefully if Redis is unavailable
+  try {
+    const blacklisted = await redis.get(`blacklist:${token}`);
+    if (blacklisted) return sendError(res, 'Token revoked', 401);
+  } catch {
+    // Redis unavailable — continue without blacklist check
+  }
 
   try {
     const payload = verifyAccessToken(token);
@@ -38,8 +42,11 @@ export const optionalAuth = async (
   if (header?.startsWith('Bearer ')) {
     const token = header.split(' ')[1];
     try {
-      const payload = verifyAccessToken(token);
-      req.user = { id: payload.id, role: payload.role as AuthUser['role'] };
+      const blacklisted = await redis.get(`blacklist:${token}`).catch(() => null);
+      if (!blacklisted) {
+        const payload = verifyAccessToken(token);
+        req.user = { id: payload.id, role: payload.role as AuthUser['role'] };
+      }
     } catch {
       // ignore — optional
     }

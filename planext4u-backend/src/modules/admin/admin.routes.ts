@@ -108,8 +108,10 @@ router.get('/inventory/logs',      authenticate, isAdmin, ctrl.listInventoryLogs
 router.post('/inventory/adjust',   authenticate, isAdmin, validate(inventoryAdjustSchema), ctrl.adjustInventory);
 
 // Notifications
-router.post('/notify/broadcast',   authenticate, isAdmin, validate(broadcastSchema), ctrl.broadcastNotif);
-router.post('/notify/user',        authenticate, isAdmin, validate(sendToUserSchema), ctrl.sendNotifToUser);
+router.post('/notify/broadcast',        authenticate, isAdmin, validate(broadcastSchema), ctrl.broadcastNotif);
+router.post('/notify/user',             authenticate, isAdmin, validate(sendToUserSchema), ctrl.sendNotifToUser);
+// Alias: frontend calls /admin/notifications/send
+router.post('/notifications/send',      authenticate, isAdmin, ctrl.broadcastNotif);
 
 // Logs
 router.get('/activity-logs', authenticate, isAdmin, ctrl.getActivityLogs);
@@ -120,5 +122,91 @@ router.get('/points-transactions', authenticate, isAdmin, ctrl.listPointsTransac
 
 // Referrals (admin list)
 router.get('/referrals', authenticate, isAdmin, ctrl.listReferrals);
+
+// Onboarding screens — alias matching frontend path (/admin/onboarding-screens)
+router.get('/onboarding-screens',        ctrl.getOnboarding);
+router.get('/onboarding-screens/all',    authenticate, isAdmin, ctrl.allOnboarding);
+router.post('/onboarding-screens',       authenticate, isAdmin, validate(onboardingScreenSchema), ctrl.createOnboarding);
+router.patch('/onboarding-screens/:id',  authenticate, isAdmin, validate(onboardingScreenSchema.partial()), ctrl.updateOnboarding);
+router.delete('/onboarding-screens/:id', authenticate, isAdmin, ctrl.deleteOnboarding);
+
+// Vendor Plans — frontend expects /admin/vendor-plans
+router.get('/vendor-plans',        async (req, res, next) => {
+  try {
+    const where = req.query.is_active !== undefined ? { status: 'active' } : {};
+    const plans = await prisma.vendorPlan.findMany({ where: where as any, orderBy: { price: 'asc' } });
+    sendSuccess(res, plans);
+  } catch (e) { next(e); }
+});
+router.post('/vendor-plans',       authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const plan = await prisma.vendorPlan.create({ data: req.body });
+    sendSuccess(res, plan, 'Created', 201);
+  } catch (e) { next(e); }
+});
+router.patch('/vendor-plans/:id',  authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const plan = await prisma.vendorPlan.update({ where: { id: req.params.id }, data: req.body });
+    sendSuccess(res, plan);
+  } catch (e) { next(e); }
+});
+router.delete('/vendor-plans/:id', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    await prisma.vendorPlan.delete({ where: { id: req.params.id } });
+    sendSuccess(res, null, 'Deleted');
+  } catch (e) { next(e); }
+});
+
+// Product Attributes — frontend expects /admin/product-attributes & /admin/product-attribute-values
+router.get('/product-attributes',        authenticate, isAdmin, async (_req, res, next) => {
+  try {
+    const attrs = await prisma.productAttribute.findMany({ orderBy: { sort_order: 'asc' } });
+    sendSuccess(res, attrs);
+  } catch (e) { next(e); }
+});
+router.post('/product-attributes',       authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const attr = await prisma.productAttribute.create({ data: req.body });
+    sendSuccess(res, attr, 'Created', 201);
+  } catch (e) { next(e); }
+});
+router.patch('/product-attributes/:id',  authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const attr = await prisma.productAttribute.update({ where: { id: req.params.id }, data: req.body });
+    sendSuccess(res, attr);
+  } catch (e) { next(e); }
+});
+router.delete('/product-attributes/:id', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    await prisma.productAttribute.delete({ where: { id: req.params.id } });
+    sendSuccess(res, null, 'Deleted');
+  } catch (e) { next(e); }
+});
+
+router.get('/product-attribute-values',        authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const where = req.query.attribute_id ? { attribute_id: String(req.query.attribute_id) } : {};
+    const vals = await prisma.productAttributeValue.findMany({ where, orderBy: { sort_order: 'asc' } });
+    sendSuccess(res, vals);
+  } catch (e) { next(e); }
+});
+router.post('/product-attribute-values',       authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const val = await prisma.productAttributeValue.create({ data: req.body });
+    sendSuccess(res, val, 'Created', 201);
+  } catch (e) { next(e); }
+});
+router.patch('/product-attribute-values/:id',  authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const val = await prisma.productAttributeValue.update({ where: { id: req.params.id }, data: req.body });
+    sendSuccess(res, val);
+  } catch (e) { next(e); }
+});
+router.delete('/product-attribute-values/:id', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    await prisma.productAttributeValue.delete({ where: { id: req.params.id } });
+    sendSuccess(res, null, 'Deleted');
+  } catch (e) { next(e); }
+});
 
 export default router;

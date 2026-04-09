@@ -44,14 +44,16 @@ export const getVendor = async (id: string) => {
 };
 
 export const registerVendor = async (data: {
-  name: string; business_name: string; email: string; mobile: string; password: string;
+  name: string; business_name: string; email: string; mobile: string; password?: string;
   category_id?: string; city_id?: string; area_id?: string;
 }) => {
   const exists = await prisma.vendor.findFirst({ where: { OR: [{ email: data.email }, { mobile: data.mobile }] } });
   if (exists) throw new AppError('Email or mobile already registered', 409);
 
+  const { password, ...rest } = data;
+  const plainPassword = password || Math.random().toString(36).slice(-10) + 'P4u!';
   return prisma.vendor.create({
-    data: { ...data, password_hash: await hashPassword(data.password) },
+    data: { ...rest, password_hash: await hashPassword(plainPassword) },
   });
 };
 

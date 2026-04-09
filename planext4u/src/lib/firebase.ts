@@ -139,7 +139,10 @@ export async function verifyOTP(otp: string) {
 export async function getFirebaseIdToken(): Promise<string> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error("No Firebase user signed in");
-  return user.getIdToken(true);
+  // Don't force refresh — the token from verifyOTP() is already fresh.
+  // Forcing refresh (true) makes an extra network call to Google that can
+  // fail on localhost with "Failed to fetch".
+  return user.getIdToken(false);
 }
 
 export async function resetPhoneAuth() {
