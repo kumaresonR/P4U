@@ -22,7 +22,7 @@ export default function AdvertisementsPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "title", label: "Title" },
+      { key: "id", label: "Ref." }, { key: "title", label: "Title" },
       { key: "advertiser", label: "Advertiser" }, { key: "placement", label: "Placement" },
       { key: "impressions", label: "Impressions" }, { key: "clicks", label: "Clicks" },
       { key: "revenue", label: "Revenue" }, { key: "status", label: "Status" },
@@ -40,7 +40,7 @@ export default function AdvertisementsPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "title", label: "Campaign", render: (a) => (
             <div><p className="font-medium">{a.title}</p><p className="text-xs text-muted-foreground">{a.advertiser}</p></div>
           )},

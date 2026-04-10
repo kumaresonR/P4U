@@ -1,0 +1,21 @@
+# Environment — default is ignore; these paths are tracked (rotate secrets for production)
+.env
+!planext4u-backend/.env
+!planext4u/.env
+planext4u-backend/.env.production
+
+# Node modules
+node_modules/
+
+# Build output
+planext4u/dist/
+planext4u-backend/dist/
+
+# SSL certs
+certbot/
+
+# Android signing keys (do not commit)
+*.keystore
+
+# Local tooling
+.claude/

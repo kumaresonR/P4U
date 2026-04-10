@@ -77,7 +77,7 @@ export default function CategoriesPage() {
 
   const handleExport = () => {
     exportToCSV(allData, [
-      { key: "id", label: "ID" }, { key: "name", label: "Name" },
+      { key: "id", label: "Ref." }, { key: "name", label: "Name" },
       { key: "parent_id", label: "Parent ID" },
       { key: "count", label: "Products" }, { key: "status", label: "Status" },
       { key: "is_trending", label: "Trending" },

@@ -27,12 +27,13 @@ const statusStyles: Record<string, string> = {
 };
 
 export function StatusBadge({ status }: { status: string }) {
+  const key = typeof status === 'string' && status.length > 0 ? status : 'unknown';
   return (
     <span className={cn(
       "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize",
-      statusStyles[status] || "bg-muted text-muted-foreground"
+      statusStyles[key] || "bg-muted text-muted-foreground"
     )}>
-      {status.replace(/_/g, " ")}
+      {key.replace(/_/g, " ")}
     </span>
   );
 }

@@ -128,7 +128,7 @@ Starts: App (5000) + PostgreSQL (5432) + Redis (6379)
 `GET/POST/PUT/DELETE` on: `cities`, `areas`, `occupations`, `categories`, `service-categories`, `tax-configs`, `vendor-plans`, `platform-variables`
 
 ### Customers — `/api/v1/customers`
-Self: `/me`, `/me/addresses`, `/me/wallet`, `/me/wishlist`  
+Self: `/me`, `/me/addresses`, **`/me/wallet`** (balance + points transactions — use this for **My Wallet**, not admin points APIs), `/me/wishlist`  
 Admin: CRUD, bulk-delete, bulk-status
 
 ### Vendors — `/api/v1/vendors`
@@ -168,7 +168,8 @@ Customer: POST, PUT, DELETE, `/my/listings`, messages, saved-searches, rent-trac
 Admin: `/admin/all`, PUT `/:id/status`
 
 ### Social — `/api/v1/social`
-Profiles, feed, explore, posts, likes, comments, follows, stories, DMs
+Profiles (by id, username, or **customer id**), feed, explore, posts, likes, comments, follows, stories, DMs.  
+**Likes:** when a user likes someone else’s post, the **post owner** can earn loyalty points (see **Loyalty / Socio** below).
 
 ### Notifications — `/api/v1/notifications`
 GET, mark read, unread count  
@@ -200,6 +201,16 @@ Connect with JWT in `auth.token` handshake.
 ## Environment Variables
 
 See `.env.example` for all required variables.
+
+### Loyalty / Socio
+| Variable | Default | Purpose |
+|---|---|---|
+| `WELCOME_BONUS_POINTS` | `200` | New customer signup |
+| `REFERRAL_BONUS_POINTS` | `100` | Referral reward |
+| `ORDER_REWARD_PERCENTAGE` | `2` | % of order total as points on completed order |
+| **`SOCIAL_LIKE_RECEIVER_POINTS`** | **`1`** | Points for **post owner** when another user **likes** their post (`0` = off). Ledger type: `social_post_like_received`. Reversed if the liker **unlikes**. |
+
+Requires DB migration adding `social_post_id` / `social_liker_profile_id` on `points_transactions` (see `prisma/migrations/`).
 
 ---
 

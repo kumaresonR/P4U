@@ -3,6 +3,7 @@ import { hashPassword } from '../../utils/password';
 import { AppError } from '../../middleware/errorHandler';
 import { getPagination } from '../../utils/pagination';
 import { sendVendorApproval } from '../../services/email';
+import { nullifyEmptyStrings, validateFks } from '../../utils/sanitize';
 import { Request } from 'express';
 
 const vendorSelect = {
@@ -43,22 +44,36 @@ export const getVendor = async (id: string) => {
   return v;
 };
 
-export const registerVendor = async (data: {
-  name: string; business_name: string; email: string; mobile: string; password?: string;
-  category_id?: string; city_id?: string; area_id?: string;
-}) => {
+export const registerVendor = async (data: any) => {
   const exists = await prisma.vendor.findFirst({ where: { OR: [{ email: data.email }, { mobile: data.mobile }] } });
   if (exists) throw new AppError('Email or mobile already registered', 409);
 
-  const { password, ...rest } = data;
-  const plainPassword = password || Math.random().toString(36).slice(-10) + 'P4u!';
+  const plainPassword = data.password || Math.random().toString(36).slice(-10) + 'P4u!';
+  const { password: _pw, ...rest } = data;
+
+  let clean = nullifyEmptyStrings(rest, ['category_id', 'plan_id', 'city_id', 'area_id']);
+  clean = await validateFks(clean, {
+    category_id: 'category',
+    city_id: 'city',
+    area_id: 'area',
+    plan_id: 'vendorPlan',
+  });
+
   return prisma.vendor.create({
-    data: { ...rest, password_hash: await hashPassword(plainPassword) },
+    data: { ...clean, password_hash: await hashPassword(plainPassword) },
   });
 };
 
-export const updateVendor = (id: string, data: object) =>
-  prisma.vendor.update({ where: { id }, data });
+export const updateVendor = async (id: string, data: any) => {
+  let clean = nullifyEmptyStrings(data, ['category_id', 'plan_id', 'city_id', 'area_id']);
+  clean = await validateFks(clean, {
+    category_id: 'category',
+    city_id: 'city',
+    area_id: 'area',
+    plan_id: 'vendorPlan',
+  });
+  return prisma.vendor.update({ where: { id }, data: clean });
+};
 
 export const updateVendorStatus = async (id: string, status: string, rejection_reason?: string) => {
   const vendor = await prisma.vendor.update({ where: { id }, data: { status: status as never, rejection_reason } });
@@ -121,20 +136,34 @@ export const getServiceVendor = async (id: string) => {
   return v;
 };
 
-export const registerServiceVendor = async (data: {
-  name: string; business_name: string; email: string; mobile: string; password: string;
-  category_id?: string; city_id?: string; area_id?: string;
-}) => {
+export const registerServiceVendor = async (data: any) => {
   const exists = await prisma.serviceVendor.findFirst({ where: { OR: [{ email: data.email }, { mobile: data.mobile }] } });
   if (exists) throw new AppError('Email or mobile already registered', 409);
 
+  const plainPassword = data.password || Math.random().toString(36).slice(-10) + 'P4u!';
+  const { password: _pw, ...rest } = data;
+
+  let clean = nullifyEmptyStrings(rest, ['category_id', 'city_id', 'area_id']);
+  clean = await validateFks(clean, {
+    category_id: 'serviceCategory',
+    city_id: 'city',
+    area_id: 'area',
+  });
+
   return prisma.serviceVendor.create({
-    data: { ...data, password_hash: await hashPassword(data.password) },
+    data: { ...clean, password_hash: await hashPassword(plainPassword) },
   });
 };
 
-export const updateServiceVendor = (id: string, data: object) =>
-  prisma.serviceVendor.update({ where: { id }, data });
+export const updateServiceVendor = async (id: string, data: any) => {
+  let clean = nullifyEmptyStrings(data, ['category_id', 'city_id', 'area_id']);
+  clean = await validateFks(clean, {
+    category_id: 'serviceCategory',
+    city_id: 'city',
+    area_id: 'area',
+  });
+  return prisma.serviceVendor.update({ where: { id }, data: clean });
+};
 
 export const updateServiceVendorStatus = (id: string, status: string) =>
   prisma.serviceVendor.update({ where: { id }, data: { status: status as never } });

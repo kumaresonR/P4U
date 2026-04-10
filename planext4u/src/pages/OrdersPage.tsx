@@ -61,7 +61,7 @@ export default function OrdersPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "Order ID" }, { key: "customer_name", label: "Customer" },
+      { key: "id", label: "Order ref." }, { key: "customer_name", label: "Customer" },
       { key: "vendor_name", label: "Vendor" }, { key: "total", label: "Total" },
       { key: "status", label: "Status" },
     ], "orders");
@@ -89,7 +89,7 @@ export default function OrdersPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "Order ID" },
+          { key: "id", label: "Order ref." },
           { key: "customer_name", label: "Customer" },
           { key: "vendor_name", label: "Vendor" },
           { key: "subtotal", label: "Subtotal", render: (o) => `₹${o.subtotal.toLocaleString()}` },

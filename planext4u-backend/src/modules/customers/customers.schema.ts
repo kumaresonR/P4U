@@ -1,10 +1,13 @@
 import { z } from 'zod';
 
+const optionalUrl = z.union([z.string().url(), z.literal('')]).optional();
+
 export const updateCustomerSchema = z.object({
   name: z.string().min(2).optional(),
-  email: z.string().email().optional(),
+  email: z.union([z.string().email(), z.literal('')]).optional(),
   mobile: z.string().min(10).max(15).optional(),
-  avatar: z.string().url().optional(),
+  avatar: optionalUrl,
+  profile_photo: optionalUrl,
   city_id: z.string().optional(),
   area_id: z.string().optional(),
   occupation: z.string().optional(),
@@ -13,7 +16,7 @@ export const updateCustomerSchema = z.object({
   about: z.string().max(500).optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
-});
+}).passthrough();
 
 export const addAddressSchema = z.object({
   label: z.enum(['home', 'work', 'other']).default('home'),

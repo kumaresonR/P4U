@@ -11,8 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { api as http, tokenStore } from "@/lib/apiClient";
 import { compressImage, validateImageFile, validateVideoFile, validateVideoDuration, formatFileSize, type CompressionProgress } from "@/lib/media-compression";
-
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+import { uploadCustomerImage, uploadCustomerDocument } from "@/lib/customer-media-upload";
 
 const MAX_VIDEO_SIZE_MB = 100;
 
@@ -132,43 +131,24 @@ export default function SocialCreatePostPage() {
           hasVideo = true;
           setUploadProgress({ stage: 'uploading', percent: 20, originalSize: file.size });
 
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('folder', 'social-videos');
-          const uploadRes = await fetch(`${BASE_URL}/admin/media-library/upload`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData,
-          }).catch(() => null);
-
-          if (!uploadRes?.ok) {
-            if (uploadRes?.status === 413) {
+          const vUp = await uploadCustomerDocument(file, token);
+          if (!vUp.ok) {
+            if (vUp.status === 413) {
               toast.error(`Video is too large. Please record a shorter video (under ${MAX_VIDEO_SIZE_MB}MB).`, { duration: 5000 });
             } else {
               toast.error(`Video upload failed`);
             }
             continue;
           }
-
-          const vData = await uploadRes.json();
-          const videoUrl = vData?.data?.url || vData?.url || '';
+          const videoUrl = vUp.url;
 
           let thumbUrl = '';
           try {
             const { extractVideoThumbnail } = await import('@/lib/media-compression');
             const thumbBlob = await extractVideoThumbnail(file);
-            const thumbForm = new FormData();
-            thumbForm.append('file', new File([thumbBlob], 'thumb.webp', { type: 'image/webp' }));
-            thumbForm.append('folder', 'social-thumbnails');
-            const tRes = await fetch(`${BASE_URL}/admin/media-library/upload`, {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}` },
-              body: thumbForm,
-            }).catch(() => null);
-            if (tRes?.ok) {
-              const tData = await tRes.json();
-              thumbUrl = tData?.data?.url || tData?.url || '';
-            }
+            const thumbFile = new File([thumbBlob], 'thumb.webp', { type: 'image/webp' });
+            const tUp = await uploadCustomerImage(thumbFile, token, 'social-thumbnails');
+            if (tUp.ok) thumbUrl = tUp.url;
           } catch {}
 
           mediaItems.push({ type: 'video', url: videoUrl, thumbnailUrl: thumbUrl, order: i });
@@ -178,17 +158,10 @@ export default function SocialCreatePostPage() {
           setUploadProgress({ stage: 'compressing', percent: 0, originalSize: file.size });
 
           const uploadBlob = async (blob: Blob, suffix: string) => {
-            const form = new FormData();
-            form.append('file', new File([blob], `${suffix}.webp`, { type: blob.type || 'image/webp' }));
-            form.append('folder', 'social-media');
-            const res = await fetch(`${BASE_URL}/admin/media-library/upload`, {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}` },
-              body: form,
-            });
-            if (!res.ok) throw new Error(`Upload failed for ${suffix}`);
-            const d = await res.json();
-            return d?.data?.url || d?.url || '';
+            const imgFile = new File([blob], `${suffix}.webp`, { type: blob.type || 'image/webp' });
+            const r = await uploadCustomerImage(imgFile, token, 'social-media');
+            if (!r.ok) throw new Error(`Upload failed for ${suffix}`);
+            return r.url;
           };
 
           try {

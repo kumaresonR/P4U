@@ -145,9 +145,16 @@ export interface WebsiteQuery {
   status: 'new' | 'in_progress' | 'resolved'; created_at: string;
 }
 
+/** Admin report log — user-submitted property listing reports (GET /properties/admin/reports). */
 export interface ReportLog {
-  id: string; report_type: string; generated_by: string; format: string;
-  status: 'completed' | 'failed' | 'processing'; file_size: string; created_at: string;
+  id: string;
+  property_id: string;
+  user_id: string;
+  reason: string;
+  description: string | null;
+  status: string;
+  created_at: string;
+  property?: { id: string; title: string; locality: string | null };
 }
 
 export interface PaginatedResponse<T> {
@@ -178,6 +185,35 @@ export const setAuthToken = (_token: string | null) => {};
 async function paginate<T>(path: string, params?: Record<string, any>): Promise<PaginatedResponse<T>> {
   const r = await http.paginate<T>(path, params);
   return { data: r.data, total: r.count, page: r.page, per_page: r.per_page, total_pages: r.total_pages };
+}
+
+/** Prisma/API uses tax_amount & discount_amount; admin UI expects tax & discount. Also flattens nested customer/vendor. */
+export function normalizeOrderFromApi(raw: Record<string, unknown>): Order {
+  const r = raw as Record<string, any>;
+  const tax = Number(r.tax ?? r.tax_amount ?? 0);
+  const discount = Number(r.discount ?? r.discount_amount ?? 0);
+  const subtotal = Number(r.subtotal ?? 0);
+  const total = Number(r.total ?? 0);
+  const points_used = Number(r.points_used ?? 0);
+  const customer_name =
+    (typeof r.customer_name === 'string' && r.customer_name) || r.customer?.name || '';
+  const vendor_name =
+    (typeof r.vendor_name === 'string' && r.vendor_name) ||
+    r.vendor?.business_name ||
+    r.vendor?.name ||
+    '';
+  const status = (r.status || 'placed') as Order['status'];
+  return {
+    ...(r as unknown as Order),
+    tax,
+    discount,
+    subtotal,
+    total,
+    points_used,
+    customer_name,
+    vendor_name,
+    status,
+  };
 }
 
 // ─── API Methods ──────────────────────────────────────────────────────────────
@@ -287,7 +323,7 @@ export const api = {
   },
 
   getServiceCategories: async () => {
-    return http.get<Category[]>('/master/categories', { type: 'service' } as any);
+    return http.get<Category[]>('/master/service-categories');
   },
 
   updateService: async (id: string, data: Partial<Service>) => {
@@ -308,7 +344,8 @@ export const api = {
   // ─── Orders ──────────────────────────────────────────────────────────────────
 
   getOrders: async (params: { page?: number; per_page?: number; search?: string; status?: string; date_from?: string; date_to?: string }) => {
-    return paginate<Order>('/orders', params);
+    const r = await paginate<Order>('/orders', params);
+    return { ...r, data: r.data.map((row) => normalizeOrderFromApi(row as unknown as Record<string, unknown>)) };
   },
 
   updateOrderStatus: async (id: string, status: Order['status']) => {
@@ -554,7 +591,7 @@ export const api = {
   // ─── Report Log ──────────────────────────────────────────────────────────────
 
   getReportLog: async (params: { page?: number; per_page?: number; status?: string; date_from?: string; date_to?: string }) => {
-    return paginate<ReportLog>('/admin/property-reports', params);
+    return paginate<ReportLog>('/properties/admin/reports', params);
   },
 
   // ─── Customer-facing APIs ────────────────────────────────────────────────────
@@ -569,7 +606,10 @@ export const api = {
 
   getCustomerOrders: async (_customerId: string) => {
     // Backend reads customer from JWT — customerId param unused
-    return http.get<Order[]>('/orders/mine');
+    const { normalizeCustomerOrderPayload } = await import('./customer-order-normalize');
+    const raw = await http.get<any[]>('/orders/my', { per_page: 100 } as any);
+    const list = Array.isArray(raw) ? raw : [];
+    return list.map(normalizeCustomerOrderPayload) as Order[];
   },
 
   getCustomerProfile: async (_customerId: string) => {
@@ -599,6 +639,7 @@ export const api = {
       });
     }
     saveCart(cart);
+    window.dispatchEvent(new Event('p4u:cart-updated'));
     return { success: true, cartCount: cart.reduce((s: number, i: CartItem) => s + i.qty, 0) };
   },
 
@@ -611,6 +652,7 @@ export const api = {
       else cart[idx].qty = qty;
     }
     saveCart(cart);
+    window.dispatchEvent(new Event('p4u:cart-updated'));
     return { success: true };
   },
 
@@ -618,12 +660,14 @@ export const api = {
     const { loadCart, saveCart } = await import('./persist');
     const cart = loadCart().filter((i: CartItem) => i.id !== itemId);
     saveCart(cart);
+    window.dispatchEvent(new Event('p4u:cart-updated'));
     return { success: true };
   },
 
   clearCart: async () => {
     const { saveCart } = await import('./persist');
     saveCart([]);
+    window.dispatchEvent(new Event('p4u:cart-updated'));
     return { success: true };
   },
 

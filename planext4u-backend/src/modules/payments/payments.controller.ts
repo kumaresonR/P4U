@@ -5,17 +5,25 @@ import { AuthRequest } from '../../types';
 
 export const createOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { amount, order_id } = req.body;
-    const result = await svc.initiatePayment(order_id, req.user!.id, amount);
+    const { amount } = req.body;
+    const result = await svc.initiatePayment(req.user!.id, amount);
     sendCreated(res, result);
   } catch (e) { next(e); }
 };
 
-export const verifyPayment = async (req: Request, res: Response, next: NextFunction) => {
+export const verifyPayment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id } = req.body;
-    await svc.confirmPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id);
-    sendSuccess(res, null, 'Payment verified');
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, cart, totals, address } = req.body;
+    const result = await svc.confirmPayment(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      req.user!.id,
+      cart,
+      totals,
+      address,
+    );
+    sendSuccess(res, result, 'Payment verified');
   } catch (e) { next(e); }
 };
 
@@ -28,4 +36,14 @@ export const razorpayWebhook = async (req: Request, res: Response, next: NextFun
 
 export const getByOrder = async (req: Request, res: Response, next: NextFunction) => {
   try { sendSuccess(res, await svc.getPaymentByOrder(req.params.orderId)); } catch (e) { next(e); }
+};
+
+export const placeCodOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { cart, totals, address } = req.body;
+    const result = await svc.placeCodOrder(req.user!.id, cart, totals, address);
+    sendCreated(res, result, 'COD order placed');
+  } catch (e) {
+    next(e);
+  }
 };

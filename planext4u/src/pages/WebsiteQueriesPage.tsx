@@ -30,7 +30,7 @@ export default function WebsiteQueriesPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "name", label: "Name" },
+      { key: "id", label: "Ref." }, { key: "name", label: "Name" },
       { key: "email", label: "Email" }, { key: "subject", label: "Subject" },
       { key: "status", label: "Status" }, { key: "created_at", label: "Date" },
     ], "website_queries");
@@ -47,7 +47,7 @@ export default function WebsiteQueriesPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "name", label: "From", render: (q) => (
             <div><p className="font-medium">{q.name}</p><p className="text-xs text-muted-foreground">{q.email}</p></div>
           )},

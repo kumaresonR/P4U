@@ -23,7 +23,12 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ) => {
-  logger.error(err);
+  const quiet404 = err instanceof AppError && err.statusCode === 404;
+  if (!quiet404) {
+    logger.error(err);
+  } else if (env.IS_DEV) {
+    logger.debug({ path: _req.originalUrl, message: err.message }, '404');
+  }
 
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({

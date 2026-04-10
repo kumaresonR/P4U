@@ -5,30 +5,43 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle, XCircle, Copy, Share2, ShoppingBag, CreditCard } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Copy, Share2, ShoppingBag, CreditCard, Banknote } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { api as http } from "@/lib/apiClient";
 import { useAuth } from "@/lib/auth";
 import { motion } from "framer-motion";
 import { format, addDays } from "date-fns";
+import { TableIdCell } from "@/components/admin/TableIdCell";
 
 type PaymentState = 'select' | 'processing' | 'success' | 'failure';
+type CheckoutMethod = 'razorpay' | 'cod';
+
+const showCodOption =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_COD === 'true';
 
 export default function PaymentPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { customerUser } = useAuth();
-  const customerId = customerUser?.customer_id || customerUser?.id || 'USR-001';
 
   const { cart, subtotal, mrpTotal, totalDiscount, platformFee, gstOnPlatformFee, discount, pointsUsed, total, savings, selectedAddress } = location.state || {};
 
   const [paymentState, setPaymentState] = useState<PaymentState>('select');
+  const [checkoutMethod, setCheckoutMethod] = useState<CheckoutMethod>('razorpay');
   const [orderId, setOrderId] = useState('');
   const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [completedWithCod, setCompletedWithCod] = useState(false);
 
   useEffect(() => {
+    if (!customerUser) {
+      toast.error('Please log in to continue');
+      navigate('/app/login');
+      return;
+    }
     if (!cart || cart.length === 0) navigate('/app/cart');
-  }, [cart, navigate]);
+  }, [cart, customerUser, navigate]);
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -41,16 +54,54 @@ export default function PaymentPage() {
     });
   };
 
+  const totalsPayload = {
+    discount: discount || 0,
+    points_used: pointsUsed || 0,
+    platform_fee: platformFee || 0,
+    gst_on_platform_fee: gstOnPlatformFee || 0,
+  };
+
+  const handleCodPlaceOrder = async () => {
+    setPaymentState('processing');
+    try {
+      const data = await http.post<any>('/payments/cod/place-order', {
+        cart,
+        address: selectedAddress,
+        totals: totalsPayload,
+      });
+      if (!data?.orders?.length) {
+        toast.error('Could not place COD order');
+        setPaymentState('select');
+        return;
+      }
+      await api.clearCart();
+      setOrderId(data.orders[0].id);
+      setOrderItems(cart || []);
+      setCompletedWithCod(true);
+      setPaymentState('success');
+    } catch (err: any) {
+      console.error('COD order error:', err);
+      toast.error(err.message || 'Could not place order');
+      setPaymentState('select');
+    }
+  };
+
   const handlePay = async () => {
+    if (checkoutMethod === 'cod') {
+      await handleCodPlaceOrder();
+      return;
+    }
+
     setPaymentState('processing');
 
     try {
       const loaded = await loadRazorpayScript();
       if (!loaded) { toast.error("Failed to load payment gateway"); setPaymentState('select'); return; }
 
-      const data = await http.post<any>('/payments/razorpay/create-order', { amount: total, currency: "INR" });
+      // Step 1: Ask backend to create a Razorpay order
+      const data = await http.post<any>('/payments/create-order', { amount: total, currency: "INR" });
 
-      if (!data?.order_id) {
+      if (!data?.razorpay_order_id || !data?.key_id) {
         toast.error("Failed to create payment order");
         setPaymentState('select');
         return;
@@ -58,27 +109,41 @@ export default function PaymentPage() {
 
       setPaymentState('select');
 
+      // Step 2: Open Razorpay checkout
       const options = {
         key: data.key_id,
         amount: data.amount,
         currency: data.currency,
         name: "Planext4u",
         description: `Order - ${cart.length} item(s)`,
-        order_id: data.order_id,
+        order_id: data.razorpay_order_id,
         handler: async (response: any) => {
           setPaymentState('processing');
-          const verifyData = await http.post<any>('/payments/razorpay/verify', {
-            order_id: data.order_id,
-            payment_id: response.razorpay_payment_id,
+
+          // Step 3: Verify with backend, which also creates the DB Order
+          const verifyData = await http.post<any>('/payments/verify', {
+            razorpay_order_id: data.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
-          }).catch(() => null);
+            cart,
+            address: selectedAddress,
+            totals: totalsPayload,
+          }).catch((err) => {
+            console.error('Verify failed:', err);
+            return null;
+          });
 
           if (!verifyData?.verified) {
             setPaymentState('failure');
             return;
           }
 
-          await createOrder(response.razorpay_payment_id, data.order_id);
+          await api.clearCart();
+          const firstOrderId = verifyData.orders?.[0]?.id || data.razorpay_order_id;
+          setOrderId(firstOrderId);
+          setOrderItems(cart || []);
+          setCompletedWithCod(false);
+          setPaymentState('success');
         },
         prefill: {
           name: customerUser?.name || "",
@@ -106,57 +171,6 @@ export default function PaymentPage() {
     }
   };
 
-  const createOrder = async (paymentId: string | null, rzpOrderId?: string) => {
-    try {
-      const dateStr = format(new Date(), 'yyyyMMdd');
-      const rand = String(Math.floor(Math.random() * 99999)).padStart(5, '0');
-      const newOrderId = `P4U-${dateStr}-${rand}`;
-
-      const vendorGroups: Record<string, any[]> = {};
-      (cart || []).forEach((item: any) => {
-        const vid = item.vendor_id || item.vendor || 'VND-001';
-        if (!vendorGroups[vid]) vendorGroups[vid] = [];
-        vendorGroups[vid].push(item);
-      });
-
-      const pf = platformFee || 0;
-      const gstPf = pf * 0.18;
-
-      const orderPromises = Object.entries(vendorGroups).map(async ([vendorId, items]) => {
-        const itemTotal = items.reduce((s: number, i: any) => s + i.price * i.qty, 0);
-        const orderData = {
-          id: newOrderId + '-' + vendorId.slice(-3),
-          customer_id: customerId,
-          customer_name: customerUser?.name || 'Customer',
-          vendor_id: vendorId,
-          vendor_name: items[0]?.vendor_name || items[0]?.vendor || 'Vendor',
-          items: items.map((i: any) => ({ id: i.id, title: i.title, qty: i.qty, price: i.price, image: i.image })),
-          subtotal: itemTotal,
-          tax: items.reduce((s: number, i: any) => s + (i.tax || 0) * i.qty, 0),
-          discount: discount || 0,
-          points_used: pointsUsed || 0,
-          platform_fee: pf,
-          gst_on_platform_fee: Math.round(gstPf * 100) / 100,
-          total: total || (itemTotal + pf + gstPf - (discount || 0)),
-          status: 'placed',
-          payment_reference_id: paymentId || null,
-          razorpay_order_id: rzpOrderId || null,
-        };
-        const result = await http.post('/orders', orderData);
-        return result || orderData;
-      });
-
-      await Promise.all(orderPromises);
-      await api.clearCart();
-      setOrderId(newOrderId);
-      setOrderItems(cart || []);
-      setPaymentState('success');
-    } catch (err) {
-      console.error('Order creation failed:', err);
-      setPaymentState('failure');
-    }
-  };
-
   if (!cart || cart.length === 0) return null;
 
   if (paymentState === 'processing') {
@@ -180,10 +194,10 @@ export default function PaymentPage() {
             <CheckCircle className="h-14 w-14 text-success" />
           </motion.div>
           <h2 className="text-2xl font-bold mb-2">Order Placed Successfully!</h2>
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="text-sm text-muted-foreground">Order ID:</span>
-            <span className="font-mono font-bold text-sm">{orderId}</span>
-            <button onClick={() => { navigator.clipboard.writeText(orderId); toast.success("Copied!"); }}>
+          <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
+            <span className="text-sm text-muted-foreground">Order ref.:</span>
+            <TableIdCell value={orderId} className="text-sm font-bold text-foreground" />
+            <button type="button" title="Copy full order id" onClick={() => { navigator.clipboard.writeText(orderId); toast.success("Copied!"); }}>
               <Copy className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
           </div>
@@ -205,7 +219,7 @@ export default function PaymentPage() {
             ))}
             <Separator className="my-3" />
             <div className="flex justify-between text-sm font-bold">
-              <span>Total Paid</span>
+              <span>{completedWithCod ? 'Pay on delivery' : 'Total paid'}</span>
               <span>₹{total?.toLocaleString()}</span>
             </div>
           </Card>
@@ -287,13 +301,35 @@ export default function PaymentPage() {
             </Card>
 
             <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <CreditCard className="h-5 w-5 text-primary" />
-                <div>
-                  <h3 className="text-sm font-semibold">Razorpay Secure Payment</h3>
-                  <p className="text-xs text-muted-foreground">Pay via UPI, Credit/Debit Card, Net Banking, Wallet & more</p>
+              <h3 className="text-sm font-semibold mb-3">Payment method</h3>
+              <RadioGroup
+                value={checkoutMethod}
+                onValueChange={(v) => setCheckoutMethod(v as CheckoutMethod)}
+                className="space-y-3"
+              >
+                <div className="flex items-start gap-3 rounded-lg border border-border p-3 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
+                  <RadioGroupItem value="razorpay" id="pay-razorpay" className="mt-0.5" />
+                  <Label htmlFor="pay-razorpay" className="flex flex-1 cursor-pointer gap-3 font-normal">
+                    <CreditCard className="h-5 w-5 text-primary shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold">Razorpay Secure Payment</p>
+                      <p className="text-xs text-muted-foreground">UPI, cards, net banking, wallet & more</p>
+                    </div>
+                  </Label>
                 </div>
-              </div>
+                {showCodOption && (
+                  <div className="flex items-start gap-3 rounded-lg border border-border p-3 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
+                    <RadioGroupItem value="cod" id="pay-cod" className="mt-0.5" />
+                    <Label htmlFor="pay-cod" className="flex flex-1 cursor-pointer gap-3 font-normal">
+                      <Banknote className="h-5 w-5 text-primary shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold">Cash on delivery</p>
+                        <p className="text-xs text-muted-foreground">Pay when your order arrives (testing)</p>
+                      </div>
+                    </Label>
+                  </div>
+                )}
+              </RadioGroup>
             </Card>
           </div>
 
@@ -320,7 +356,7 @@ export default function PaymentPage() {
                 )}
               </div>
               <Button className="w-full h-12 mt-4 text-base font-semibold" onClick={handlePay}>
-                Pay ₹{total?.toLocaleString()}
+                {checkoutMethod === 'cod' ? `Place order · ₹${total?.toLocaleString()} COD` : `Pay ₹${total?.toLocaleString()}`}
               </Button>
               <p className="text-[10px] text-muted-foreground text-center mt-2">🔒 100% Secure Payment</p>
             </Card>
@@ -330,7 +366,7 @@ export default function PaymentPage() {
 
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border/50 px-4 py-3 md:hidden safe-area-bottom">
         <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handlePay}>
-          Pay ₹{total?.toLocaleString()}
+          {checkoutMethod === 'cod' ? `Place order · ₹${total?.toLocaleString()} COD` : `Pay ₹${total?.toLocaleString()}`}
         </Button>
       </div>
     </CustomerLayout>

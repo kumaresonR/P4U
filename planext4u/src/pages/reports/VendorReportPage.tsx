@@ -60,7 +60,7 @@ export default function VendorReportPage() {
       ...v,
       revenue: v.total_revenue,
     })), [
-      { key: "id", label: "ID" }, { key: "name", label: "Name" }, { key: "business_name", label: "Business" },
+      { key: "id", label: "Ref." }, { key: "name", label: "Name" }, { key: "business_name", label: "Business" },
       { key: "plan_name", label: "Plan" }, { key: "commission_rate", label: "Commission %" },
       { key: "total_orders", label: "Orders" }, { key: "revenue", label: "Revenue (₹)" },
       { key: "rating", label: "Rating" }, { key: "status", label: "Status" },

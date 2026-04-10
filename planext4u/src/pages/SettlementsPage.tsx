@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, Wallet, IndianRupee, Clock, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { exportToCSV } from "@/lib/csv";
+import { formatDisplayId } from "@/lib/format-display-id";
 
 export default function SettlementsPage() {
   const [data, setData] = useState<PaginatedResponse<Settlement> | null>(null);
@@ -21,7 +22,13 @@ export default function SettlementsPage() {
   const [loading, setLoading] = useState(false);
 
   const fetchData = useCallback(() => {
-    api.getSettlements({ page, per_page: 10, search: search || undefined, status: statusFilter || undefined, date_from: dateFrom, date_to: dateTo }).then(setData);
+    api
+      .getSettlements({ page, per_page: 10, search: search || undefined, status: statusFilter || undefined, date_from: dateFrom, date_to: dateTo })
+      .then(setData)
+      .catch(() => {
+        toast.error('Failed to load settlements');
+        setData({ data: [], total: 0, page: 1, per_page: 10, total_pages: 0 });
+      });
   }, [page, search, statusFilter, dateFrom, dateTo]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -31,7 +38,7 @@ export default function SettlementsPage() {
   const confirmSettle = async () => {
     if (!confirmTarget) return;
     setLoading(true);
-    try { await api.settleSettlement(confirmTarget.id); toast.success(`Settlement ${confirmTarget.id} processed`); fetchData(); }
+    try { await api.settleSettlement(confirmTarget.id); toast.success(`Settlement ${formatDisplayId(confirmTarget.id)} processed`); fetchData(); }
     finally { setLoading(false); setConfirmOpen(false); setConfirmTarget(null); }
   };
 
@@ -44,8 +51,8 @@ export default function SettlementsPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "vendor_name", label: "Vendor" },
-      { key: "order_id", label: "Order" }, { key: "amount", label: "Amount" },
+      { key: "id", label: "Ref." }, { key: "vendor_name", label: "Vendor" },
+      { key: "order_id", label: "Order ref." }, { key: "amount", label: "Amount" },
       { key: "commission", label: "Commission" }, { key: "net_amount", label: "Net" },
       { key: "status", label: "Status" },
     ], "settlements");
@@ -74,9 +81,9 @@ export default function SettlementsPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "vendor_name", label: "Vendor" },
-          { key: "order_id", label: "Order" },
+          { key: "order_id", label: "Order ref." },
           { key: "amount", label: "Order Amount", render: (s) => `₹${s.amount.toLocaleString()}` },
           { key: "commission", label: "Commission", render: (s) => <span className="text-destructive">-₹{s.commission.toLocaleString()}</span> },
           { key: "net_amount", label: "Net Payout", render: (s) => <span className="font-bold text-success">₹{s.net_amount.toLocaleString()}</span> },

@@ -40,8 +40,9 @@ router.use('/orders',        orderRoutes);
 router.use('/payments',      paymentRoutes);
 router.use('/classifieds',   classifiedRoutes);
 router.use('/properties',    propertyRoutes);
+// v2 first: adds DELETE /posts/:id/like, extra feed handlers, etc.; legacy fills gaps (DM, explore, bookmarks)
+router.use('/social',        socialV2Routes);
 router.use('/social',        socialRoutes);
-router.use('/social',        socialV2Routes);   // v2 overlays on same prefix
 router.use('/notifications', notificationRoutes);
 router.use('/admin',         adminRoutes);
 router.use('/media',         mediaRoutes);

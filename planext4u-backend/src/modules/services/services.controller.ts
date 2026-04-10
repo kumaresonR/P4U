@@ -6,7 +6,17 @@ import { AuthRequest } from '../../types';
 export const list    = async (req: Request, res: Response, next: NextFunction) => { try { const r = await svc.listServices(req);   sendPaginated(res, r.data, r.total, r.page, r.limit); } catch (e) { next(e); } };
 export const browse  = async (req: Request, res: Response, next: NextFunction) => { try { const r = await svc.browseServices(req); sendPaginated(res, r.data, r.total, r.page, r.limit); } catch (e) { next(e); } };
 export const get     = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getService(req.params.id)); } catch (e) { next(e); } };
-export const create  = async (req: AuthRequest, res: Response, next: NextFunction) => { try { sendCreated(res, await svc.createService({ ...req.body, vendor_id: req.user!.id })); } catch (e) { next(e); } };
+export const create  = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    // For service-vendor self-service routes, the vendor_id comes from the auth token.
+    // For admin routes, use the vendor_id that the admin selected in the form.
+    const isVendorSelfService = req.user?.role === 'service_vendor' || req.user?.role === 'vendor';
+    const data = isVendorSelfService
+      ? { ...req.body, vendor_id: req.user!.id }
+      : req.body;
+    sendCreated(res, await svc.createService(data));
+  } catch (e) { next(e); }
+};
 export const update  = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.updateService(req.params.id, req.body)); } catch (e) { next(e); } };
 export const remove  = async (req: Request, res: Response, next: NextFunction) => { try { await svc.deleteService(req.params.id); sendSuccess(res, null, 'Deleted'); } catch (e) { next(e); } };
 export const bulkDel = async (req: Request, res: Response, next: NextFunction) => { try { await svc.bulkDeleteServices(req.body.ids); sendSuccess(res, null, 'Updated'); } catch (e) { next(e); } };

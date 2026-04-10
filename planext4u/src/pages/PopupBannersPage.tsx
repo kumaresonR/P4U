@@ -20,7 +20,7 @@ export default function PopupBannersPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "title", label: "Title" },
+      { key: "id", label: "Ref." }, { key: "title", label: "Title" },
       { key: "description", label: "Description" }, { key: "status", label: "Status" },
       { key: "start_date", label: "Start" }, { key: "end_date", label: "End" },
     ], "popup_banners");
@@ -37,7 +37,7 @@ export default function PopupBannersPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "image", label: "Image", render: (b) => b.image ? (
             <img src={b.image} alt={b.title} className="h-10 w-16 rounded-lg object-cover" />
           ) : (

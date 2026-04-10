@@ -10,98 +10,23 @@ import { toast } from "sonner";
 import SocialLayout from "@/components/social/SocialLayout";
 import { useSocialFeed, useSharePost, useRepost } from "@/hooks/use-social-interactions";
 import { api as http, tokenStore } from "@/lib/apiClient";
+import { uploadCustomerStoryFile } from "@/lib/customer-media-upload";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-
-const FALLBACK_POSTS = [
-  {
-    id: "p1", user_id: "mock", username: "vijay_sivakumar", displayName: "Vijay Sivakumar",
-    isVerified: true, location_name: "Pondicherry, TN", created_at: new Date(Date.now() - 3600000).toISOString(),
-    media: [
-      { type: "photo", url: "https://picsum.photos/seed/p1a/600/600" },
-      { type: "photo", url: "https://picsum.photos/seed/p1b/600/600" },
-      { type: "photo", url: "https://picsum.photos/seed/p1c/600/600" },
-    ],
-    caption: "Just tried the amazing coffee from Brooklyn Coffee Co.! Best pour-over in town ☕",
-    hashtags: ["#coffee", "#local", "#brooklyn"],
-    like_count: 1600, comment_count: 800, share_count: 145,
-    collabUser: "Kokila",
-  },
-  {
-    id: "p2", user_id: "mock", username: "planext4u", displayName: "Planext4u",
-    isVerified: true, location_name: "Coimbatore, TN", created_at: new Date(Date.now() - 10800000).toISOString(),
-    media: [
-      { type: "photo", url: "https://picsum.photos/seed/p2a/600/600" },
-      { type: "photo", url: "https://picsum.photos/seed/p2b/600/600" },
-    ],
-    caption: "Exciting things are coming to P4U! Stay tuned for the biggest update yet 🚀",
-    hashtags: ["#planext4u", "#superapp"],
-    like_count: 3200, comment_count: 450, share_count: 890,
-  },
-  {
-    id: "p3", user_id: "mock", username: "priya_designs", displayName: "Priya Designs",
-    isVerified: false, location_name: "Chennai, TN", created_at: new Date(Date.now() - 18000000).toISOString(),
-    media: [
-      { type: "photo", url: "https://picsum.photos/seed/p3a/600/600" },
-    ],
-    caption: "New collection dropping soon! What do you think of these designs? 🎨✨",
-    hashtags: ["#design", "#art"],
-    like_count: 892, comment_count: 67, share_count: 23,
-  },
-  {
-    id: "p4", user_id: "mock", username: "foodie_arun", displayName: "Arun Foodie",
-    isVerified: false, location_name: "Bangalore, KA", created_at: new Date(Date.now() - 25200000).toISOString(),
-    media: [
-      { type: "photo", url: "https://picsum.photos/seed/p4a/600/600" },
-      { type: "photo", url: "https://picsum.photos/seed/p4b/600/600" },
-    ],
-    caption: "Weekend biryani feast at this hidden gem in Koramangala 🍚🔥 Must try!",
-    hashtags: ["#food", "#biryani", "#bangalore"],
-    like_count: 2100, comment_count: 312, share_count: 89,
-  },
-  {
-    id: "p5", user_id: "mock", username: "travel_meera", displayName: "Meera Travels",
-    isVerified: true, location_name: "Munnar, KL", created_at: new Date(Date.now() - 43200000).toISOString(),
-    media: [
-      { type: "photo", url: "https://picsum.photos/seed/p5a/600/600" },
-      { type: "photo", url: "https://picsum.photos/seed/p5b/600/600" },
-      { type: "photo", url: "https://picsum.photos/seed/p5c/600/600" },
-    ],
-    caption: "Lost in the tea gardens of Munnar 🍃 This place is pure magic",
-    hashtags: ["#travel", "#munnar", "#kerala", "#nature"],
-    like_count: 4500, comment_count: 678, share_count: 234,
-  },
-  {
-    id: "p6", user_id: "mock", username: "fit_kumar", displayName: "Kumar Fitness",
-    isVerified: false, location_name: "Hyderabad, TS", created_at: new Date(Date.now() - 72000000).toISOString(),
-    media: [
-      { type: "photo", url: "https://picsum.photos/seed/p6a/600/600" },
-    ],
-    caption: "Day 90 of the transformation journey 💪 Consistency is key!",
-    hashtags: ["#fitness", "#gym", "#transformation"],
-    like_count: 1800, comment_count: 145, share_count: 56,
-  },
-];
-
-const MOCK_STORIES = [
-  { id: "own", username: "Your Story", avatar: "", isOwn: true, seen: false },
-  { id: "s1", username: "vijay_kumar", avatar: "https://i.pravatar.cc/100?u=vijay", seen: false },
-  { id: "s2", username: "priya_designs", avatar: "https://i.pravatar.cc/100?u=priya", seen: false },
-  { id: "s3", username: "rahul_food", avatar: "https://i.pravatar.cc/100?u=rahul", seen: true },
-  { id: "s4", username: "anita_travel", avatar: "https://i.pravatar.cc/100?u=anita", seen: true },
-  { id: "s5", username: "karthik_tech", avatar: "https://i.pravatar.cc/100?u=karthik", seen: false },
-  { id: "s6", username: "sneha_art", avatar: "https://i.pravatar.cc/100?u=sneha", seen: false },
-  { id: "s7", username: "planext4u", avatar: "https://i.pravatar.cc/100?u=planext", seen: true },
-  { id: "s8", username: "foodie_chen", avatar: "https://i.pravatar.cc/100?u=chen", seen: false },
-  { id: "s9", username: "dev_rajan", avatar: "https://i.pravatar.cc/100?u=rajan", seen: true },
-  { id: "s10", username: "dance_queen", avatar: "https://i.pravatar.cc/100?u=dance", seen: false },
-];
+// "Your Story" is always first; ring list uses real profile ids from the API (see story strip query).
+const OWN_STORY = { id: 'own', username: 'Your Story', avatar: '', isOwn: true, seen: false };
 
 function formatCount(n: number): string {
   if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
   return n.toString();
+}
+
+/** Prefer full-size URL; fall back to compressed variants (matches API `media` items). */
+function pickPostMediaSrc(item: { url?: string; mediumUrl?: string; thumbnailUrl?: string } | undefined): string {
+  if (!item) return '';
+  const u = item.url || item.mediumUrl || item.thumbnailUrl;
+  return typeof u === 'string' && u.trim() ? u.trim() : '';
 }
 
 function timeAgo(dateStr: string): string {
@@ -113,17 +38,18 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function CommentItem({ comment, isMock }: { comment: any; isMock: boolean }) {
+function CommentItem({ comment }: { comment: any }) {
+  const profileId = comment.profile_id || comment.user_id;
   const { data: profile } = useQuery({
-    queryKey: ['social-comment-profile', comment.user_id],
+    queryKey: ['social-comment-profile', profileId],
     queryFn: async () => {
-      const res = await http.get<any>(`/social/profiles/${comment.user_id}`).catch(() => null);
+      const res = await http.get<any>(`/social/profiles/${profileId}`).catch(() => null);
       return res;
     },
-    enabled: !isMock && !!comment.user_id,
+    enabled: !!profileId,
   });
-  const name = isMock ? (comment.user_id === 'user1' ? 'vijay' : comment.user_id === 'user2' ? 'priya' : 'anita') : (profile?.display_name || profile?.username || 'user');
-  const avatar = profile?.avatar_url || '';
+  const name = comment.profile?.username || profile?.username || profile?.display_name || 'user';
+  const avatar = comment.profile?.avatar || profile?.avatar_url || profile?.avatar || '';
   return (
     <div className="flex items-start gap-2 py-1">
       <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
@@ -149,100 +75,65 @@ function PostCard({ post }: { post: any }) {
   const [showAllComments, setShowAllComments] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
+  const [mockComments, setMockComments] = useState<any[]>([]);
 
+  const isMock = !!post.isMock;
   const userId = customerUser?.id;
   const postId = post.id;
   const mediaItems = Array.isArray(post.media) ? post.media : [];
   const isCarousel = mediaItems.length > 1;
-  const isMock = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'].includes(postId);
 
   const EMOJI_PALETTE = ["😀","😂","😍","🥰","😎","🤩","😢","😡","👍","👏","🔥","❤️","💯","🎉","🙌","💪","🤔","😅","🥺","✨","💕","🎊","👀","🤗","😤","💀","🫡","🤝"];
   const GIF_STICKERS = ["😊","🎉","🔥","💯","👏","❤️‍🔥","🥳","🫶","💐","🌟"];
 
-  const { data: isLiked = false } = useQuery({
-    queryKey: ['social-like', postId, userId],
-    queryFn: async () => {
-      if (!userId) return false;
-      const res = await http.get<any>(`/social/posts/${postId}/liked`).catch(() => null);
-      return !!(res?.liked);
-    },
-    enabled: !!userId && !isMock,
-  });
+  // Backend should include is_liked_by_me / is_bookmarked_by_me on the post object.
+  // Falls back to post values for optimistic UI.
+  const isLiked = !!post.is_liked_by_me;
+  const isSaved = !!post.is_bookmarked_by_me;
+  const likeCount = post.likes_count ?? post.like_count ?? 0;
+  const commentCount = post.comments_count ?? post.comment_count ?? 0;
 
-  const { data: likeCount = post.like_count || 0 } = useQuery({
-    queryKey: ['social-like-count', postId],
-    queryFn: async () => {
-      const res = await http.get<any>(`/social/posts/${postId}`).catch(() => null);
-      return res?.like_count || 0;
-    },
-    enabled: !isMock,
-  });
+  const postProfile = post.profile || null;
 
-  const { data: commentCount = post.comment_count || 0 } = useQuery({
-    queryKey: ['social-comment-count', postId],
-    queryFn: async () => {
-      const res = await http.get<any>(`/social/posts/${postId}`).catch(() => null);
-      return res?.comment_count || 0;
-    },
-    enabled: !isMock,
-  });
-
-  const { data: isSaved = false } = useQuery({
-    queryKey: ['social-bookmark', postId, userId],
-    queryFn: async () => {
-      if (!userId) return false;
-      const res = await http.get<any>(`/social/posts/${postId}/bookmarked`).catch(() => null);
-      return !!(res?.bookmarked);
-    },
-    enabled: !!userId && !isMock,
-  });
-
-  const { data: postProfile } = useQuery({
-    queryKey: ['social-post-profile', post.user_id],
-    queryFn: async () => {
-      const res = await http.get<any>(`/social/profiles/${post.user_id}`).catch(() => null);
-      return res;
-    },
-    enabled: !isMock && !!post.user_id,
-  });
-
-  // All comments for inline display
+  // Fetch comments inline (only when expanded for performance)
   const { data: allComments = [] } = useQuery({
     queryKey: ['social-all-comments', postId],
     queryFn: async () => {
-      const res = await http.get<any>(`/social/posts/${postId}/comments`, { per_page: 20 } as any).catch(() => null);
+      const res = await http.get<any>(`/social/posts/${postId}/comments`).catch(() => null);
       return Array.isArray(res) ? res : (res?.data || []);
     },
-    enabled: !isMock && showAllComments,
+    enabled: showAllComments && !!postId,
   });
 
   const { data: recentComments = [] } = useQuery({
     queryKey: ['social-recent-comments', postId],
     queryFn: async () => {
-      const res = await http.get<any>(`/social/posts/${postId}/comments`, { per_page: 2 } as any).catch(() => null);
-      return Array.isArray(res) ? res : (res?.data || []);
+      const res = await http.get<any>(`/social/posts/${postId}/comments`).catch(() => null);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      return list.slice(0, 2);
     },
-    enabled: !isMock,
+    enabled: !!postId,
   });
 
-  const [localLiked, setLocalLiked] = useState(false);
-  const [localSaved, setLocalSaved] = useState(false);
-  const [localLikeCount, setLocalLikeCount] = useState(post.like_count || 0);
-  const [mockComments, setMockComments] = useState([
-    { id: 'mc1', user_id: 'user1', content: 'This is amazing! 🔥', created_at: new Date(Date.now() - 3600000).toISOString() },
-    { id: 'mc2', user_id: 'user2', content: 'Love this post ❤️', created_at: new Date(Date.now() - 7200000).toISOString() },
-    { id: 'mc3', user_id: 'user3', content: 'So beautiful 😍', created_at: new Date(Date.now() - 10800000).toISOString() },
-  ]);
+  // Optimistic local state for like/save toggles
+  const [localLiked, setLocalLiked] = useState<boolean | null>(null);
+  const [localSaved, setLocalSaved] = useState<boolean | null>(null);
+  const [localLikeDelta, setLocalLikeDelta] = useState(0);
 
-  const liked = isMock ? localLiked : isLiked;
-  const saved = isMock ? localSaved : isSaved;
-  const likes = isMock ? localLikeCount : likeCount;
-  const comments = isMock ? (post.comment_count || 0) : commentCount;
-  const shareCount = post.share_count || 0;
+  const liked = localLiked ?? isLiked;
+  const saved = localSaved ?? isSaved;
+  const likes = likeCount + localLikeDelta;
+  const comments = commentCount;
+  const shareCount = post.shares_count ?? post.share_count ?? 0;
 
   const toggleLike = useMutation({
     mutationFn: async () => {
-      if (isMock) { setLocalLiked(v => !v); setLocalLikeCount(v => localLiked ? v - 1 : v + 1); return; }
+      if (isMock) {
+        const was = localLiked ?? isLiked;
+        setLocalLiked(!was);
+        setLocalLikeDelta((d) => d + (was ? -1 : 1));
+        return;
+      }
       if (!userId) { toast.error("Please login to like"); return; }
       if (isLiked) {
         await http.delete(`/social/posts/${postId}/like`);
@@ -298,7 +189,7 @@ function PostCard({ post }: { post: any }) {
 
   const username = isMock ? post.username : (postProfile?.display_name || postProfile?.username || 'user');
   const isVerified = isMock ? post.isVerified : (postProfile?.is_verified || false);
-  const avatarUrl = isMock ? '' : (postProfile?.avatar_url || '');
+  const avatarUrl = isMock ? '' : (postProfile?.avatar_url || postProfile?.avatar || '');
 
   const displayComments = isMock ? mockComments : (showAllComments ? allComments : recentComments);
 
@@ -339,26 +230,30 @@ function PostCard({ post }: { post: any }) {
         {mediaItems.length > 0 ? (
           mediaItems[carouselIdx]?.type === 'video' ? (
             <video 
-              src={mediaItems[carouselIdx]?.url || ''} 
+              src={pickPostMediaSrc(mediaItems[carouselIdx])} 
               className="w-full h-full object-cover cursor-pointer"
               controls muted playsInline
-              onClick={() => setFullscreenImg(mediaItems[carouselIdx]?.url || '')}
+              onClick={() => setFullscreenImg(pickPostMediaSrc(mediaItems[carouselIdx]))}
             />
           ) : (
             <img 
-              src={mediaItems[carouselIdx]?.url || mediaItems[carouselIdx]?.mediumUrl || ''} 
+              src={pickPostMediaSrc(mediaItems[carouselIdx])} 
               alt="" 
               className="w-full h-full object-cover cursor-pointer" 
               loading="lazy"
-              referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
-              onClick={() => setFullscreenImg(mediaItems[carouselIdx]?.url || mediaItems[carouselIdx]?.mediumUrl || '')}
+              onClick={() => setFullscreenImg(pickPostMediaSrc(mediaItems[carouselIdx]))}
               onDoubleClick={(e) => { e.stopPropagation(); toggleLike.mutate(); }}
               onError={(e) => {
-                const target = e.currentTarget;
-                if (!target.dataset.retried) {
-                  target.dataset.retried = "1";
-                  target.src = target.src.replace('&fit=crop', '&fit=crop&auto=format');
+                const el = e.currentTarget;
+                const item = mediaItems[carouselIdx];
+                if (!item) return;
+                const chain = [item.url, item.mediumUrl, item.thumbnailUrl]
+                  .filter((u): u is string => typeof u === 'string' && u.length > 0);
+                const uniq = [...new Set(chain)];
+                const i = Number(el.dataset.fallbackIdx || '0');
+                if (i + 1 < uniq.length) {
+                  el.dataset.fallbackIdx = String(i + 1);
+                  el.src = uniq[i + 1];
                 }
               }}
             />
@@ -393,8 +288,8 @@ function PostCard({ post }: { post: any }) {
           {isCarousel && fullscreenImg && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
               {mediaItems.map((_: any, i: number) => (
-                <button key={i} onClick={() => setFullscreenImg(mediaItems[i]?.url || mediaItems[i]?.mediumUrl || '')}
-                  className={`h-2 w-2 rounded-full ${(mediaItems[i]?.url || mediaItems[i]?.mediumUrl) === fullscreenImg ? 'bg-white' : 'bg-white/40'}`} />
+                <button key={i} onClick={() => setFullscreenImg(pickPostMediaSrc(mediaItems[i]))}
+                  className={`h-2 w-2 rounded-full ${pickPostMediaSrc(mediaItems[i]) === fullscreenImg ? 'bg-white' : 'bg-white/40'}`} />
               ))}
             </div>
           )}
@@ -458,7 +353,7 @@ function PostCard({ post }: { post: any }) {
           >
             <div className="px-4 space-y-1 max-h-60 overflow-y-auto">
               {(!showAllComments && !isMock ? recentComments : displayComments).map((c: any) => (
-                <CommentItem key={c.id} comment={c} isMock={isMock} />
+                <CommentItem key={c.id} comment={c} />
               ))}
             </div>
             {showAllComments && (
@@ -535,20 +430,20 @@ function PostCard({ post }: { post: any }) {
   );
 }
 
-function StoryBubble({ story, navigate, customerUser }: { story: any; navigate: any; customerUser: any }) {
+function StoryBubble({ story, navigate, customerUser, mySocialProfileId }: { story: any; navigate: any; customerUser: any; mySocialProfileId: string | null }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
 
-  // Check if current user has active stories
+  // Check if current user has active stories (same feed as /social/stories; server enforces 24h expiry).
   const { data: hasOwnStories = false } = useQuery({
-    queryKey: ['own-stories-exist', customerUser?.id],
+    queryKey: ['own-stories-exist', mySocialProfileId],
     queryFn: async () => {
-      if (!customerUser?.id) return false;
+      if (!mySocialProfileId) return false;
       const res = await http.get<any>('/social/stories/mine').catch(() => null);
       const stories = Array.isArray(res) ? res : (res?.data || []);
       return stories.length > 0;
     },
-    enabled: story.isOwn && !!customerUser?.id,
+    enabled: story.isOwn && !!mySocialProfileId,
   });
 
   const handleYourStoryClick = () => {
@@ -557,8 +452,9 @@ function StoryBubble({ story, navigate, customerUser }: { story: any; navigate: 
       return;
     }
     if (!customerUser?.id) { toast.error("Please login"); navigate("/app/login"); return; }
+    if (!mySocialProfileId) { toast.error("Could not load your profile"); return; }
     if (hasOwnStories) {
-      navigate(`/app/social/stories/${customerUser.id}`);
+      navigate(`/app/social/stories/${mySocialProfileId}`);
     } else {
       fileRef.current?.click();
     }
@@ -571,37 +467,43 @@ function StoryBubble({ story, navigate, customerUser }: { story: any; navigate: 
 
     toast.info(`Uploading ${files.length} story item(s)...`);
     const token = tokenStore.getAccess();
+    const items: { media_url: string; media_type: 'image' | 'video' | 'audio' }[] = [];
 
     for (const file of files) {
       const isVideo = file.type.startsWith('video/');
-      const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+      const isAudio = file.type.startsWith('audio/');
+      const maxSize = isVideo ? 50 * 1024 * 1024 : isAudio ? 20 * 1024 * 1024 : 10 * 1024 * 1024;
       if (file.size > maxSize) {
-        toast.error(`${file.name} is too large. Max ${isVideo ? '50MB' : '10MB'}.`);
+        toast.error(`${file.name} is too large. Max ${isVideo ? '50MB' : isAudio ? '20MB' : '10MB'}.`);
         continue;
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'stories');
-      const uploadRes = await fetch(`${BASE_URL}/admin/media-library/upload`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      }).catch(() => null);
-      if (!uploadRes?.ok) { toast.error(`Upload failed for ${file.name}`); continue; }
-      const uploadData = await uploadRes.json();
-      const url = uploadData?.data?.url || uploadData?.url || '';
-      if (!url) { toast.error(`Upload failed for ${file.name}`); continue; }
+      const uploaded = await uploadCustomerStoryFile(file, token);
+      if (!uploaded.ok || !uploaded.url) {
+        const hint =
+          uploaded.status === 403
+            ? ' (not allowed)'
+            : uploaded.status === 413
+              ? ' (file too large)'
+              : '';
+        toast.error(`Upload failed for ${file.name}${hint}`);
+        continue;
+      }
+      const url = uploaded.url;
 
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      await http.post('/social/stories', {
-        media_url: url,
-        media_type: isVideo ? 'video' : 'image',
-        expires_at: expiresAt,
-      }).catch(() => {});
+      const media_type = isVideo ? 'video' : isAudio ? 'audio' : 'image';
+      items.push({ media_url: url, media_type });
     }
 
-    toast.success("Story posted! 🎉");
+    if (items.length) {
+      try {
+        await http.post('/social/stories', { items });
+        toast.success("Story posted! 🎉");
+      } catch {
+        toast.error("Could not publish story");
+      }
+    }
+
     qc.invalidateQueries({ queryKey: ['social-feed-stories'] });
     qc.invalidateQueries({ queryKey: ['own-stories-exist'] });
     e.target.value = '';
@@ -609,7 +511,7 @@ function StoryBubble({ story, navigate, customerUser }: { story: any; navigate: 
 
   return (
     <>
-      <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileSelect} />
+      <input ref={fileRef} type="file" accept="image/*,video/*,audio/*" multiple className="hidden" onChange={handleFileSelect} />
       <button className="flex flex-col items-center gap-1 shrink-0 w-[68px]" onClick={handleYourStoryClick}>
         <div className={`relative p-[2px] rounded-full ${story.isOwn ? (hasOwnStories ? 'bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600' : '') : story.seen ? 'bg-muted' : 'bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600'}`}>
           <div className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-card p-[2px]">
@@ -636,11 +538,19 @@ export default function SocialFeedPage() {
   const navigate = useNavigate();
   const { customerUser } = useAuth();
   const [feedMode, setFeedMode] = useState<'following' | 'for_you'>('for_you');
-  const storiesRef = useRef<HTMLDivElement>(null);
 
-  const { data: dbPosts = [] } = useSocialFeed(feedMode);
+  const { data: dbPosts = [], isLoading: feedLoading } = useSocialFeed(feedMode);
 
-  // Fetch stories from DB
+  const { data: mySocialProfileId = null } = useQuery({
+    queryKey: ['social-profile-me-id', customerUser?.id],
+    queryFn: async () => {
+      const res = await http.get<any>('/social/profiles/me').catch(() => null);
+      return res?.id || null;
+    },
+    enabled: !!customerUser?.id,
+  });
+
+  // One ring per author (social profile_id), not customer user id.
   const { data: storyUsers = [] } = useQuery({
     queryKey: ['social-feed-stories'],
     queryFn: async () => {
@@ -649,23 +559,31 @@ export default function SocialFeedPage() {
       if (!data.length) return [];
       const seen = new Set<string>();
       return data
-        .filter((s: any) => { if (seen.has(s.user_id)) return false; seen.add(s.user_id); return true; })
+        .filter((s: any) => {
+          const pid = s.profile_id || s.profile?.id;
+          if (!pid || seen.has(pid)) return false;
+          seen.add(pid);
+          return true;
+        })
         .map((s: any) => {
-          const prof = s.social_profiles || s.profile || {};
-          return { id: s.user_id, username: prof?.display_name || prof?.username || 'user', avatar: prof?.avatar_url || '', seen: false };
+          const prof = s.profile || s.social_profiles || {};
+          const pid = s.profile_id || prof?.id;
+          return {
+            id: pid,
+            username: prof?.display_name || prof?.username || 'user',
+            avatar: prof?.avatar_url || prof?.avatar || '',
+            seen: false,
+          };
         });
     },
   });
 
-  const stories = [
-    MOCK_STORIES[0],
-    ...(storyUsers.length > 0 ? storyUsers : MOCK_STORIES.slice(1)),
-  ];
+  const stories = [OWN_STORY, ...storyUsers];
 
-  const posts = dbPosts.length > 0 ? dbPosts.map((p: any) => ({
+  const posts = dbPosts.map((p: any) => ({
     ...p,
     media: Array.isArray(p.media) ? p.media : [],
-  })) : FALLBACK_POSTS;
+  }));
 
   const content = (
     <>
@@ -689,39 +607,36 @@ export default function SocialFeedPage() {
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Stories</span>
       </div>
 
-      {/* Stories - horizontally scrollable */}
-      <div className="relative border-b border-border/20">
+      {/* Stories - horizontally scrollable (touch / trackpad / scrollbar — no side arrows) */}
+      <div className="border-b border-border/20">
         <div
-          ref={storiesRef}
           className="flex gap-3 px-4 py-3 overflow-x-auto overflow-y-hidden scrollbar-hide"
           style={{ WebkitOverflowScrolling: 'touch', scrollBehavior: 'smooth' }}
         >
           {stories.map((story: any) => (
-            <StoryBubble key={story.id} story={story} navigate={navigate} customerUser={customerUser} />
+            <StoryBubble key={story.id} story={story} navigate={navigate} customerUser={customerUser} mySocialProfileId={mySocialProfileId} />
           ))}
         </div>
-        {/* Scroll arrows for desktop */}
-        <button
-          className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-card border border-border shadow-md items-center justify-center z-10 hover:bg-muted"
-          onClick={() => { storiesRef.current?.scrollBy({ left: 200, behavior: 'smooth' }); }}
-        >
-          <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
-        </button>
-        <button
-          className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-card border border-border shadow-md items-center justify-center z-10 hover:bg-muted"
-          onClick={() => { storiesRef.current?.scrollBy({ left: -200, behavior: 'smooth' }); }}
-        >
-          <ChevronDown className="h-4 w-4 rotate-90" />
-        </button>
       </div>
 
       {/* Feed */}
       <div className="pb-20 md:pb-8">
+        {feedLoading && (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading feed…</div>
+        )}
+        {!feedLoading && posts.length === 0 && (
+          <div className="px-4 py-12 text-center space-y-2">
+            <p className="text-sm font-semibold">No posts yet</p>
+            <p className="text-xs text-muted-foreground">Follow people or switch to For you to discover posts. Create your first post from the + button.</p>
+          </div>
+        )}
         {posts.map((post: any) => <PostCard key={post.id} post={post} />)}
-        <div className="py-6 px-4 text-center">
-          <p className="text-sm font-semibold mb-1">You're All Caught Up</p>
-          <p className="text-xs text-muted-foreground">You've seen all new posts from the last 3 days.</p>
-        </div>
+        {!feedLoading && posts.length > 0 && (
+          <div className="py-6 px-4 text-center">
+            <p className="text-sm font-semibold mb-1">You're All Caught Up</p>
+            <p className="text-xs text-muted-foreground">You've seen all new posts from the last 3 days.</p>
+          </div>
+        )}
       </div>
     </>
   );

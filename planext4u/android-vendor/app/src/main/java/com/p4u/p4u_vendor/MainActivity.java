@@ -1,4 +1,4 @@
-package com.planext4u.customer;
+package com.p4u.p4u_vendor;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -16,6 +16,7 @@ import { useState, useEffect, useMemo } from "react";
 import { MediaLibraryPicker } from "@/components/admin/MediaLibraryPicker";
 import { api as http } from "@/lib/apiClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { TableIdCell } from "@/components/admin/TableIdCell";
 
 interface ProductModalProps {
   product: Product | null;
@@ -69,10 +70,10 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
     queryFn: () => http.get<any[]>('/admin/tax-slabs'),
   });
 
-  // Fetch all vendors with city/state info for filtering
+  // Fetch all vendors with city/state info for filtering (admin sees all statuses)
   const { data: allVendors } = useQuery({
     queryKey: ["vendorsWithLocation"],
-    queryFn: () => http.get<any[]>('/vendors', { status: 'active', per_page: 1000 } as any),
+    queryFn: () => http.get<any[]>('/vendors', { per_page: 1000 } as any),
     enabled: !isVendor,
   });
 
@@ -353,7 +354,11 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
             </div>
             <div>
               <span>{isCreate ? "New Product" : product?.title}</span>
-              {!isCreate && product && <p className="text-xs font-normal text-muted-foreground mt-0.5">{product.id}</p>}
+              {!isCreate && product && (
+                <p className="text-xs font-normal text-muted-foreground mt-0.5 flex items-center gap-1">
+                  Ref. <TableIdCell value={product.id} />
+                </p>
+              )}
             </div>
           </DialogTitle>
           {!isCreate && product && (

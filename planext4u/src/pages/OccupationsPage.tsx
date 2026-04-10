@@ -38,7 +38,7 @@ export default function OccupationsPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "name", label: "Occupation" },
+      { key: "id", label: "Ref." }, { key: "name", label: "Occupation" },
       { key: "customer_count", label: "Customers" }, { key: "status", label: "Status" },
     ], "occupations");
     toast.success("CSV exported");
@@ -63,7 +63,7 @@ export default function OccupationsPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "name", label: "Occupation", render: (o) => <span className="font-medium">{o.name}</span> },
           { key: "customer_count", label: "Customers", render: (o) => <span className="font-semibold">{o.customer_count}</span> },
           { key: "status", label: "Status", render: (o) => <StatusBadge status={o.status} /> },

@@ -24,7 +24,7 @@ export default function CFCategoriesPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "name", label: "Category" },
+      { key: "id", label: "Ref." }, { key: "name", label: "Category" },
       { key: "count", label: "Products" }, { key: "status", label: "Status" },
     ], "cf_categories");
     toast.success("CSV exported");
@@ -40,7 +40,7 @@ export default function CFCategoriesPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "image", label: "Icon", render: (c) => <span className="text-xl">{c.image}</span> },
           { key: "name", label: "Category", render: (c) => <span className="font-medium">{c.name}</span> },
           { key: "count", label: "Listings", render: (c) => <span className="font-semibold">{(c.count || 0).toLocaleString()}</span> },

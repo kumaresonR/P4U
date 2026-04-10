@@ -7,6 +7,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
+import { TableIdCell } from "@/components/admin/TableIdCell";
+import { shouldFormatIdValue } from "@/lib/format-display-id";
 
 interface Column<T> {
   key: string;
@@ -277,7 +279,11 @@ export function DataTable<T extends Record<string, any>>({
                     )}
                     {columns.map((col) => (
                       <td key={col.key}>
-                        {col.render ? col.render(item) : item[col.key]}
+                        {col.render
+                          ? col.render(item)
+                          : shouldFormatIdValue(col.key, item[col.key])
+                            ? <TableIdCell value={item[col.key]} />
+                            : item[col.key]}
                       </td>
                     ))}
                   </tr>

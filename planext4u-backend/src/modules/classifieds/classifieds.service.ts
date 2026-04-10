@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { getPagination } from '../../utils/pagination';
+import { nullifyEmptyStrings } from '../../utils/sanitize';
 import { Request } from 'express';
 
 export const listClassifieds = async (req: Request) => {
@@ -49,8 +50,10 @@ export const getClassified = async (id: string) => {
   return c;
 };
 
-export const createClassified = (userId: string, data: object) =>
-  prisma.classifiedAd.create({ data: { ...(data as object), user_id: userId } as Parameters<typeof prisma.classifiedAd.create>[0]['data'] });
+export const createClassified = async (userId: string, data: any) => {
+  const clean = nullifyEmptyStrings(data, ['city', 'area', 'category']);
+  return prisma.classifiedAd.create({ data: { ...clean, user_id: userId } });
+};
 
 export const updateClassified = (id: string, data: object) =>
   prisma.classifiedAd.update({ where: { id }, data });

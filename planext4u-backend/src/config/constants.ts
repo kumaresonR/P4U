@@ -14,7 +14,7 @@ export const OTP = {
 export const PAGINATION = {
   DEFAULT_PAGE: 1,
   DEFAULT_LIMIT: 20,
-  MAX_LIMIT: 100,
+  MAX_LIMIT: 2000,
 };
 
 export const ORDER_STATUS = {

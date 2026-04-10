@@ -82,7 +82,7 @@ export default function ProductsPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "title", label: "Product" },
+      { key: "id", label: "Ref." }, { key: "title", label: "Product" },
       { key: "vendor_name", label: "Vendor" }, { key: "category_name", label: "Category" },
       { key: "price", label: "Price" }, { key: "tax", label: "Tax" },
       { key: "discount", label: "Discount" }, { key: "status", label: "Status" },
@@ -106,7 +106,7 @@ export default function ProductsPage() {
   ];
 
   const columns = [
-    { key: "id", label: "ID" },
+    { key: "id", label: "Ref." },
     { key: "title", label: "Product", render: (p: Product) => (
       <div><p className="font-medium">{p.title}</p><p className="text-xs text-muted-foreground">{p.category_name}{(p as any).subcategory_name ? ` › ${(p as any).subcategory_name}` : ''} • <span className="capitalize">{(p as any).product_type || 'simple'}</span></p></div>
     )},

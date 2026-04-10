@@ -9,8 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
 import { api } from "@/lib/api";
 import { Search, Calendar, ChevronLeft, ChevronRight, Package, Truck, MapPin, RefreshCcw, ArrowLeft, Star } from "lucide-react";
+import { orderStatusToTrackingStep } from "@/lib/customer-order-normalize";
 import { useAuth } from "@/lib/auth";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { TableIdCell } from "@/components/admin/TableIdCell";
 
 const statusColor: Record<string, string> = {
   placed: "bg-primary/10 text-primary", paid: "bg-info/10 text-info", accepted: "bg-info/10 text-info",
@@ -18,7 +20,13 @@ const statusColor: Record<string, string> = {
   completed: "bg-success/10 text-success", cancelled: "bg-destructive/10 text-destructive",
 };
 
-const trackingSteps = ["placed", "accepted", "in_progress", "delivered", "completed"];
+const trackingSteps = [
+  { key: "placed", label: "Order placed" },
+  { key: "accepted", label: "Confirmed" },
+  { key: "in_progress", label: "Processing / shipped" },
+  { key: "delivered", label: "Delivered" },
+  { key: "completed", label: "Completed" },
+];
 
 const ITEMS_PER_PAGE = 5;
 
@@ -32,10 +40,11 @@ export default function CustomerOrdersPage() {
   const [trackingOrder, setTrackingOrder] = useState<any>(null);
   const [refundOrder, setRefundOrder] = useState<any>(null);
 
-  const { data: orders, isLoading } = useQuery({
+  const { data: orders, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["customerOrders", customerId],
     queryFn: () => api.getCustomerOrders(customerId),
     enabled: !!customerId,
+    retry: 1,
   });
 
   // Search by order ID or product name
@@ -59,7 +68,7 @@ export default function CustomerOrdersPage() {
 
   const clearFilters = () => { setSearchTerm(""); setDateFrom(""); setDateTo(""); setCurrentPage(1); };
 
-  const currentStep = (status: string) => trackingSteps.indexOf(status);
+  const trackingStepIndex = (status: string) => orderStatusToTrackingStep(status);
 
   return (
     <CustomerLayout>
@@ -93,17 +102,23 @@ export default function CustomerOrdersPage() {
 
         <div className="space-y-3">
           {isLoading ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />) :
+            isError ? (
+              <div className="text-center py-12 space-y-3">
+                <p className="text-sm text-destructive">Couldn&apos;t load orders. {(error as Error)?.message || ''}</p>
+                <Button size="sm" variant="outline" onClick={() => refetch()}>Try again</Button>
+              </div>
+            ) :
             filtered.length === 0 ? <p className="text-center py-16 text-muted-foreground">{searchTerm || dateFrom || dateTo ? 'No matching orders' : 'No orders yet'}</p> :
             paginated.map((o) => (
-              <Link to={`/app/orders/${o.id}`} key={o.id}>
-                <Card className="p-4 hover:shadow-sm transition-shadow">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="text-sm font-semibold">{o.id}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })} • {o.vendor_name}</p>
-                    </div>
-                    <Badge className={(statusColor[o.status] || "bg-muted") + " border-0"}>{o.status.replace("_", " ")}</Badge>
-                  </div>
+              <Card key={o.id} className="p-4 hover:shadow-sm transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <Link to={`/app/orders/${o.id}`} className="min-w-0 flex-1">
+                    <TableIdCell value={o.id} className="text-sm font-semibold text-foreground" />
+                    <p className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })} • {o.vendor_name}</p>
+                  </Link>
+                  <Badge className={(statusColor[o.status] || "bg-muted") + " border-0 shrink-0"}>{o.status.replace("_", " ")}</Badge>
+                </div>
+                <Link to={`/app/orders/${o.id}`} className="block">
                   {o.items?.map((item: any, i: number) => (
                     <div key={i} className="flex items-center gap-3 mb-1">
                       <div className="h-10 w-10 bg-secondary/30 rounded-lg flex items-center justify-center text-lg shrink-0 overflow-hidden">
@@ -115,19 +130,27 @@ export default function CustomerOrdersPage() {
                       </div>
                     </div>
                   ))}
-                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/30">
-                    <p className="text-sm font-bold">₹{o.total.toLocaleString()}</p>
-                    <div className="flex gap-2 items-center">
-                      {(o as any).delivery_rating ? (
-                        <span className="flex items-center gap-1 text-xs text-amber-500">
-                          <Star className="h-3 w-3 fill-amber-400" /> {(o as any).delivery_rating}/5
-                        </span>
-                      ) : null}
-                      <span className="text-xs text-primary font-medium">View Details →</span>
-                    </div>
+                </Link>
+                <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/30 gap-2 flex-wrap">
+                  <p className="text-sm font-bold">₹{o.total.toLocaleString()}</p>
+                  <div className="flex gap-2 items-center flex-wrap justify-end">
+                    {(o as any).delivery_rating ? (
+                      <span className="flex items-center gap-1 text-xs text-amber-500">
+                        <Star className="h-3 w-3 fill-amber-400" /> {(o as any).delivery_rating}/5
+                      </span>
+                    ) : null}
+                    {o.status !== 'cancelled' && (
+                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs gap-1"
+                        onClick={() => setTrackingOrder(o)}>
+                        <Truck className="h-3.5 w-3.5" /> Track order
+                      </Button>
+                    )}
+                    <Button type="button" variant="ghost" size="sm" className="h-8 text-xs text-primary" asChild>
+                      <Link to={`/app/orders/${o.id}`}>Details →</Link>
+                    </Button>
                   </div>
-                </Card>
-              </Link>
+                </div>
+              </Card>
             ))}
         </div>
 
@@ -152,13 +175,14 @@ export default function CustomerOrdersPage() {
           <DialogTitle className="flex items-center gap-2"><Truck className="h-5 w-5 text-primary" /> Track Order</DialogTitle>
           {trackingOrder && (
             <div className="space-y-4 pt-2">
-              <p className="text-sm font-semibold">{trackingOrder.id}</p>
+              <TableIdCell value={trackingOrder.id} className="text-sm font-semibold text-foreground" />
               <div className="space-y-3">
                 {trackingSteps.map((step, i) => {
-                  const isCurrent = i === currentStep(trackingOrder.status);
-                  const isDone = i <= currentStep(trackingOrder.status);
+                  const idx = trackingStepIndex(trackingOrder.status);
+                  const isCurrent = i === idx;
+                  const isDone = idx >= 0 && i <= idx;
                   return (
-                    <div key={step} className="flex items-center gap-3">
+                    <div key={step.key} className="flex items-center gap-3">
                       <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${isDone ? 'bg-success text-success-foreground' : 'bg-secondary text-muted-foreground'}`}>
                         {i === 0 && <Package className="h-4 w-4" />}
                         {i === 1 && <Package className="h-4 w-4" />}
@@ -167,7 +191,7 @@ export default function CustomerOrdersPage() {
                         {i === 4 && <Package className="h-4 w-4" />}
                       </div>
                       <div className="flex-1">
-                        <p className={`text-sm font-medium capitalize ${isDone ? '' : 'text-muted-foreground'}`}>{step.replace("_", " ")}</p>
+                        <p className={`text-sm font-medium ${isDone ? '' : 'text-muted-foreground'}`}>{step.label}</p>
                         {isCurrent && <p className="text-xs text-primary">Current status</p>}
                       </div>
                       {isDone && <Badge className="bg-success/10 text-success border-0 text-[10px]">Done</Badge>}
@@ -186,7 +210,7 @@ export default function CustomerOrdersPage() {
           <DialogTitle className="flex items-center gap-2"><RefreshCcw className="h-5 w-5 text-destructive" /> Request Refund</DialogTitle>
           {refundOrder && (
             <div className="space-y-4 pt-2">
-              <p className="text-sm">Order: <strong>{refundOrder.id}</strong></p>
+              <p className="text-sm flex flex-wrap items-center gap-1">Order ref.: <TableIdCell value={refundOrder.id} className="text-sm font-semibold text-foreground" /></p>
               <p className="text-sm">Amount: <strong>₹{refundOrder.total.toLocaleString()}</strong></p>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Reason for refund</label>

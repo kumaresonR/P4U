@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Wallet, ArrowUpRight, ArrowDownLeft, Gift, ShoppingBag, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Wallet, ArrowDownLeft, Gift, ShoppingBag, ChevronLeft, ChevronRight, AlertTriangle, Heart, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,25 +16,18 @@ export default function CustomerWalletPage() {
   const { customerUser } = useAuth();
   const customerId = customerUser?.customer_id || customerUser?.id || '';
 
-  const { data: profile } = useQuery({
-    queryKey: ["customerProfile", customerId],
+  /** Customer wallet — must use /customers/me/wallet (admin /points-transactions is not for customers). */
+  const { data: walletData, isLoading } = useQuery({
+    queryKey: ["customerWallet", customerId],
     queryFn: async () => {
       if (!customerId) return null;
-      return await http.get('/customers/me');
+      return await http.get<{ balance: number; transactions: Array<Record<string, unknown>> }>("/customers/me/wallet");
     },
     enabled: !!customerId,
   });
 
-  const { data: transactions, isLoading } = useQuery({
-    queryKey: ["pointsTransactions", customerId],
-    queryFn: async () => {
-      if (!customerId) return [];
-      const res = await http.get<any>('/points-transactions', { user_id: customerId, per_page: 500 } as any);
-      const all = Array.isArray(res) ? res : (res?.data || []);
-      return all.filter((t: any) => t.points > 0);
-    },
-    enabled: !!customerId,
-  });
+  const balance = walletData?.balance ?? 0;
+  const userTransactions = (walletData?.transactions || []).filter((t: any) => (t.points as number) > 0);
 
   // Points expiring this month
   const { data: expiringPoints } = useQuery({
@@ -48,15 +41,18 @@ export default function CustomerWalletPage() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const userTransactions = transactions || [];
   const totalPages = Math.max(1, Math.ceil(userTransactions.length / ITEMS_PER_PAGE));
   const paginated = userTransactions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const typeIcon = (type: string) => {
-    if (type === 'welcome') return <Gift className="h-4 w-4 text-primary" />;
-    if (type === 'referral') return <ArrowDownLeft className="h-4 w-4 text-success" />;
+    if (type === "welcome") return <Gift className="h-4 w-4 text-primary" />;
+    if (type === "referral") return <ArrowDownLeft className="h-4 w-4 text-success" />;
+    if (type === "social_post_like_received") return <Heart className="h-4 w-4 text-rose-500" />;
     return <ShoppingBag className="h-4 w-4 text-warning" />;
   };
+
+  const sumType = (t: string) =>
+    userTransactions.filter((x: any) => x.type === t).reduce((s: number, x: any) => s + (x.points || 0), 0);
 
   return (
     <CustomerLayout>
@@ -71,15 +67,19 @@ export default function CustomerWalletPage() {
             <Wallet className="h-8 w-8" />
             <div>
               <p className="text-xs opacity-80">Available Balance</p>
-              <p className="text-3xl font-bold">{profile?.wallet_points?.toLocaleString() || 0} <span className="text-sm font-normal">points</span></p>
+              <p className="text-3xl font-bold">{balance.toLocaleString()} <span className="text-sm font-normal">points</span></p>
             </div>
           </div>
           <div className="flex gap-3">
-            <Button size="sm" variant="secondary" className="flex-1 gap-1">
-              <ArrowUpRight className="h-3.5 w-3.5" /> Redeem
+            <Button size="sm" variant="secondary" className="flex-1" asChild>
+              <Link to="/app/browse" className="inline-flex items-center justify-center gap-1 w-full">
+                <Store className="h-3.5 w-3.5 shrink-0" /> Shop & redeem
+              </Link>
             </Button>
-            <Button size="sm" variant="secondary" className="flex-1 gap-1">
-              <Gift className="h-3.5 w-3.5" /> Refer & Earn
+            <Button size="sm" variant="secondary" className="flex-1" asChild>
+              <Link to="/app/referrals" className="inline-flex items-center justify-center gap-1 w-full">
+                <Gift className="h-3.5 w-3.5 shrink-0" /> Refer & earn
+              </Link>
             </Button>
           </div>
         </Card>
@@ -98,18 +98,22 @@ export default function CustomerWalletPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card className="p-3 text-center">
-            <p className="text-lg font-bold text-success">+{userTransactions.filter(t => t.type === 'referral').reduce((s: number, t: any) => s + t.points, 0)}</p>
-            <p className="text-[10px] text-muted-foreground">Referral Pts</p>
+            <p className="text-lg font-bold text-success">+{sumType("referral")}</p>
+            <p className="text-[10px] text-muted-foreground">Referral</p>
           </Card>
           <Card className="p-3 text-center">
-            <p className="text-lg font-bold text-warning">+{userTransactions.filter(t => t.type === 'order_reward').reduce((s: number, t: any) => s + t.points, 0)}</p>
-            <p className="text-[10px] text-muted-foreground">Order Rewards</p>
+            <p className="text-lg font-bold text-warning">+{sumType("order_reward")}</p>
+            <p className="text-[10px] text-muted-foreground">Order rewards</p>
           </Card>
           <Card className="p-3 text-center">
-            <p className="text-lg font-bold text-primary">{userTransactions.filter(t => t.type === 'welcome').reduce((s: number, t: any) => s + t.points, 0)}</p>
-            <p className="text-[10px] text-muted-foreground">Welcome Bonus</p>
+            <p className="text-lg font-bold text-primary">+{sumType("welcome")}</p>
+            <p className="text-[10px] text-muted-foreground">Welcome bonus</p>
+          </Card>
+          <Card className="p-3 text-center">
+            <p className="text-lg font-bold text-rose-600">+{sumType("social_post_like_received")}</p>
+            <p className="text-[10px] text-muted-foreground">Post likes (Socio)</p>
           </Card>
         </div>
 

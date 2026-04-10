@@ -7,9 +7,9 @@ export const createClassifiedSchema = z.object({
   category: z.string().min(2),
   city: z.string().min(2),
   area: z.string().min(2),
-  images: z.array(z.string().url()).default([]),
+  images: z.array(z.string()).default([]),
   contact: z.string().optional(),
-});
+}).passthrough();
 
 export const updateClassifiedSchema = createClassifiedSchema.partial();
 

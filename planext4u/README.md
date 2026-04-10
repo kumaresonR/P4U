@@ -71,3 +71,9 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+---
+
+## Planext4U — backend & feature notes
+
+For **Socio** (feed/stories), **customer media uploads** (`/media/image`, `/media/document` — not admin upload), **post-like loyalty points**, **My Wallet** (`GET /customers/me/wallet`), and **migration baselines**, see the repo root **[SETUP_PROGRESS.md](../SETUP_PROGRESS.md)** (§21). Backend API overview: **[planext4u-backend/README.md](../planext4u-backend/README.md)**.

@@ -45,6 +45,8 @@ const envSchema = z.object({
   WELCOME_BONUS_POINTS: z.string().default('200'),
   REFERRAL_BONUS_POINTS: z.string().default('100'),
   ORDER_REWARD_PERCENTAGE: z.string().default('2'),
+  /** Points credited to post owner when another user likes their post (0 to disable). */
+  SOCIAL_LIKE_RECEIVER_POINTS: z.string().default('1'),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -61,6 +63,7 @@ export const env = {
   WELCOME_BONUS_POINTS: parseInt(parsed.data.WELCOME_BONUS_POINTS, 10),
   REFERRAL_BONUS_POINTS: parseInt(parsed.data.REFERRAL_BONUS_POINTS, 10),
   ORDER_REWARD_PERCENTAGE: parseFloat(parsed.data.ORDER_REWARD_PERCENTAGE),
+  SOCIAL_LIKE_RECEIVER_POINTS: Math.max(0, parseInt(parsed.data.SOCIAL_LIKE_RECEIVER_POINTS, 10) || 0),
   CORS_ORIGINS: parsed.data.FRONTEND_URLS.split(',').map((u) => u.trim()),
   IS_PROD: parsed.data.NODE_ENV === 'production',
   IS_DEV: parsed.data.NODE_ENV === 'development',

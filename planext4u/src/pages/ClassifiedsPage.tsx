@@ -62,7 +62,7 @@ export default function ClassifiedsPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "title", label: "Title" },
+      { key: "id", label: "Ref." }, { key: "title", label: "Title" },
       { key: "price", label: "Price" }, { key: "city", label: "City" },
       { key: "user_name", label: "Posted By" }, { key: "status", label: "Status" },
     ], "classifieds");
@@ -90,7 +90,7 @@ export default function ClassifiedsPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "image", label: "Image", render: (a) => {
             const images = Array.isArray((a as any).images) ? (a as any).images : [];
             return images.length > 0 ? (

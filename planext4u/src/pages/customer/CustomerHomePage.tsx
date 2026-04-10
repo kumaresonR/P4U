@@ -209,7 +209,7 @@ export default function CustomerHomePage() {
     ...parentCategories.slice(0, 7).map((c: any) => ({
       icon: c.image?.startsWith('http') ? '' : (c.image || '📦'),
       label: c.name.length > 10 ? c.name.slice(0, 10) : c.name,
-      to: `/app/browse?category=${c.name}`,
+      to: `/app/browse?category=${encodeURIComponent(c.id)}`,
       image: c.image?.startsWith('http') ? c.image : '',
     })),
   ];
@@ -491,7 +491,7 @@ export default function CustomerHomePage() {
             {isLoading ? Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />) :
               parentCategories.map((c: any) => (
                 <motion.div key={c.id} variants={itemAnim}>
-                  <Link to={`/app/browse?category=${c.name}`} className="flex flex-col items-center gap-2 group">
+                  <Link to={`/app/browse?category=${encodeURIComponent(c.id)}`} className="flex flex-col items-center gap-2 group">
                     <div className="h-14 w-14 md:h-20 md:w-20 rounded-full bg-secondary/50 border-2 border-border/50 flex items-center justify-center overflow-hidden group-hover:border-primary/50 group-hover:shadow-md transition-all duration-300">
                       {c.image && c.image.startsWith('http') ? (
                         <img src={c.image} alt={c.name} className="w-full h-full object-cover rounded-full" loading="lazy" />
@@ -636,7 +636,7 @@ export default function CustomerHomePage() {
               {isLoading ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />) :
                 data?.serviceCategories?.slice(0, 8).map((c) => (
                   <motion.div key={c.id} whileHover={{ scale: 1.03 }} transition={{ type: "spring", stiffness: 300 }}>
-                    <Link to={`/app/services?category=${c.name}`}
+                    <Link to={`/app/services?category=${encodeURIComponent(c.id)}`}
                       className="bg-card rounded-xl border border-border/50 p-3 hover:border-primary/30 hover:shadow-md transition-all flex items-center gap-3">
                       <div className="h-12 w-12 rounded-full bg-secondary/50 flex items-center justify-center overflow-hidden shrink-0">
                         {c.image && c.image.startsWith('/') ? (

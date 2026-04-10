@@ -8,6 +8,7 @@ import { sendSuccess, sendCreated } from '../../utils/response';
 import { authenticate } from '../../middleware/auth';
 import { isAdmin, isCustomer } from '../../middleware/rbac';
 import { AuthRequest } from '../../types';
+import { AppError } from '../../middleware/errorHandler';
 import * as svc from './social.service';
 
 const router = Router();
@@ -51,7 +52,92 @@ router.get('/feed/public', async (req: Request, res: Response, next: NextFunctio
   try { sendSuccess(res, await svc.getExploreFeed(req)); } catch (e) { next(e); }
 });
 
+// ─── Search & recent (web UI) ────────────────────────────────────────────────
+
+router.get('/search/users', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const limit = Math.min(20, parseInt(String(req.query.limit), 10) || 10);
+    if (!q) return sendSuccess(res, []);
+    sendSuccess(res, await svc.searchSocialUsers(q, limit));
+  } catch (e) { next(e); }
+});
+
+router.get('/search/hashtags', async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.searchHashtags(req.query.q as string || '')); } catch (e) { next(e); }
+});
+
+router.get('/recent-searches', authenticate, async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, []); } catch (e) { next(e); }
+});
+
+router.post('/recent-searches', authenticate, async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, null, 'OK'); } catch (e) { next(e); }
+});
+
+router.delete('/recent-searches', authenticate, async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, null, 'OK'); } catch (e) { next(e); }
+});
+
+router.delete('/recent-searches/:id', authenticate, async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, null, 'OK'); } catch (e) { next(e); }
+});
+
+// ─── DM conversations (web Socio chat) — static paths before /conversations/:id ─
+
+router.post('/conversations/find-or-create', authenticate, isCustomer, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const profile = await svc.getOrCreateProfile(req.user!.id);
+    const recipientId = String(req.body?.recipient_id || '').trim();
+    if (!recipientId) throw new AppError('recipient_id required', 400);
+    sendSuccess(res, await svc.findOrCreateConversationForUser(profile.id, recipientId));
+  } catch (e) { next(e); }
+});
+
+router.get('/conversations/:id/messages', authenticate, isCustomer, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const profile = await svc.getOrCreateProfile(req.user!.id);
+    const r = await svc.listConversationMessages(req.params.id, profile.id, req);
+    sendSuccess(res, r.data);
+  } catch (e) { next(e); }
+});
+
+router.patch('/conversations/:id/messages/read', authenticate, isCustomer, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const profile = await svc.getOrCreateProfile(req.user!.id);
+    sendSuccess(res, await svc.markConversationMessagesRead(req.params.id, profile.id));
+  } catch (e) { next(e); }
+});
+
+router.post('/conversations/:id/messages', authenticate, isCustomer, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const profile = await svc.getOrCreateProfile(req.user!.id);
+    sendCreated(res, await svc.sendConversationMessage(req.params.id, profile.id, req.body));
+  } catch (e) { next(e); }
+});
+
 // ─── Posts ────────────────────────────────────────────────────────────────────
+
+router.get('/posts/:id/liked', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const p = await svc.getOrCreateProfile(req.user!.id);
+    sendSuccess(res, await svc.isPostLikedByProfile(req.params.id, p.id));
+  } catch (e) { next(e); }
+});
+
+router.get('/posts/:id/bookmarked', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const p = await svc.getOrCreateProfile(req.user!.id);
+    sendSuccess(res, await svc.isPostBookmarkedByProfile(req.params.id, p.id));
+  } catch (e) { next(e); }
+});
+
+router.delete('/posts/:id/bookmark', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const p = await svc.getOrCreateProfile(req.user!.id);
+    sendSuccess(res, await svc.removeBookmark(req.params.id, p.id));
+  } catch (e) { next(e); }
+});
 
 router.get('/posts/:id', async (req: Request, res: Response, next: NextFunction) => {
   try { sendSuccess(res, await svc.getPost(req.params.id)); } catch (e) { next(e); }
@@ -83,6 +169,10 @@ router.delete('/posts/:id/like', authenticate, async (req: AuthRequest, res: Res
   } catch (e) { next(e); }
 });
 
+router.post('/posts/:id/repost', authenticate, isCustomer, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.repostPost(req.params.id)); } catch (e) { next(e); }
+});
+
 // ─── Comments ─────────────────────────────────────────────────────────────────
 
 router.get('/posts/:id/comments', async (req: Request, res: Response, next: NextFunction) => {
@@ -93,6 +183,22 @@ router.post('/posts/:id/comments', authenticate, async (req: AuthRequest, res: R
   try {
     const profile = await svc.getOrCreateProfile(req.user!.id);
     sendCreated(res, await svc.addComment(req.params.id, profile.id, req.body.content, req.body.parent_id));
+  } catch (e) { next(e); }
+});
+
+// ─── Profiles (follow helpers for web — same paths as legacy) ────────────────
+
+router.get('/profiles/:id/is-following', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const p = await svc.getOrCreateProfile(req.user!.id);
+    sendSuccess(res, await svc.isFollowingProfile(p.id, req.params.id));
+  } catch (e) { next(e); }
+});
+
+router.delete('/profiles/:id/follow', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const p = await svc.getOrCreateProfile(req.user!.id);
+    sendSuccess(res, await svc.removeFollow(p.id, req.params.id));
   } catch (e) { next(e); }
 });
 
@@ -140,11 +246,17 @@ router.get('/stories/me', authenticate, async (req: AuthRequest, res: Response, 
   } catch (e) { next(e); }
 });
 
+router.get('/stories/mine', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const profile = await svc.getOrCreateProfile(req.user!.id);
+    sendSuccess(res, await svc.getActiveStories(profile.id));
+  } catch (e) { next(e); }
+});
+
 router.post('/stories', authenticate, isCustomer, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const profile = await svc.getOrCreateProfile(req.user!.id);
-    const mediaUrls: string[] = req.body.media_urls || (req.body.media_url ? [req.body.media_url] : []);
-    sendCreated(res, await svc.createStory(profile.id, mediaUrls));
+    sendCreated(res, await svc.createStoryFromBody(profile.id, req.body as Record<string, unknown>));
   } catch (e) { next(e); }
 });
 

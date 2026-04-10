@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { api as http } from "@/lib/apiClient";
 import { toast } from "sonner";
+import { TableIdCell } from "@/components/admin/TableIdCell";
 
 export default function VendorProfilePage() {
   const { vendorUser } = useAuth();
@@ -206,8 +207,8 @@ export default function VendorProfilePage() {
           )}
 
           {(vendor as any)?.plan_transaction_id && (
-            <div className="text-xs text-muted-foreground">
-              Transaction ID: <span className="font-mono font-medium">{(vendor as any).plan_transaction_id}</span>
+            <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-1">
+              Transaction ref.: <TableIdCell value={String((vendor as any).plan_transaction_id)} className="font-medium text-foreground" />
             </div>
           )}
         </Card>

@@ -13,6 +13,7 @@ import { useState, useEffect } from "react";
 import { api as http } from "@/lib/apiClient";
 import { exportToCSV } from "@/lib/csv";
 import { toast } from "sonner";
+import { TableIdCell } from "@/components/admin/TableIdCell";
 
 interface CustomerModalProps {
   customer: User | null;
@@ -182,7 +183,11 @@ export function CustomerModal({ customer, open, onOpenChange, mode, onSave, onCr
                   </Badge>
                 )}
               </div>
-              {!isCreate && <p className="text-xs font-normal text-muted-foreground mt-0.5">{customer?.id}</p>}
+              {!isCreate && customer?.id && (
+                <p className="text-xs font-normal text-muted-foreground mt-0.5 flex items-center gap-1">
+                  Ref. <TableIdCell value={customer.id} />
+                </p>
+              )}
             </div>
           </DialogTitle>
           {!isCreate && customer && (
@@ -419,7 +424,7 @@ export function CustomerModal({ customer, open, onOpenChange, mode, onSave, onCr
                     <Card key={o.id} className="p-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-xs font-mono text-muted-foreground">{o.id}</p>
+                          <TableIdCell value={o.id} />
                           <p className="text-sm font-medium mt-0.5">{o.vendor_name || 'Vendor'}</p>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {(o.items as any[] || []).slice(0, 3).map((item: any, i: number) => (

@@ -59,7 +59,7 @@ export default function SupportTicketsPage() {
   };
 
   const columns = [
-    { key: "id", label: "Ticket ID", render: (row: SupportTicket) => <span className="font-mono text-xs">{row.id}</span> },
+    { key: "id", label: "Ticket ref." },
     { key: "subject", label: "Subject" },
     { key: "customer_name", label: "Customer" },
     { key: "category", label: "Category", render: (row: SupportTicket) => <Badge variant="outline" className="text-xs">{row.category}</Badge> },

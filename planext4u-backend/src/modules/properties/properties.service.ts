@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { getPagination } from '../../utils/pagination';
+import { nullifyEmptyStrings, validateFks } from '../../utils/sanitize';
 import { Request } from 'express';
 
 export const searchProperties = async (req: Request) => {
@@ -80,10 +81,15 @@ export const getProperty = async (id: string) => {
   return p;
 };
 
-export const createProperty = (userId: string, data: object) =>
-  prisma.property.create({
-    data: { ...(data as object), user_id: userId } as Parameters<typeof prisma.property.create>[0]['data'],
+export const createProperty = async (userId: string, data: any) => {
+  let clean = nullifyEmptyStrings(data, ['city_id', 'area_id', 'locality_id']);
+  clean = await validateFks(clean, {
+    city_id: 'city',
+    area_id: 'area',
+    locality_id: 'propertyLocality',
   });
+  return prisma.property.create({ data: { ...clean, user_id: userId } });
+};
 
 export const updateProperty = (id: string, data: object) =>
   prisma.property.update({ where: { id }, data });
@@ -214,9 +220,24 @@ export const reportProperty = (propertyId: string, userId: string, reason: strin
 export const getReports = async (req: import('express').Request) => {
   const { getPagination } = await import('../../utils/pagination');
   const { page, limit, skip } = getPagination(req);
+  const { status, date_from, date_to } = req.query as Record<string, string>;
+  const where: Record<string, unknown> = {};
+  if (status) where.status = status;
+  if (date_from || date_to) {
+    where.created_at = {
+      ...(date_from ? { gte: new Date(date_from) } : {}),
+      ...(date_to ? { lte: new Date(`${date_to}T23:59:59.999Z`) } : {}),
+    };
+  }
   const [data, total] = await Promise.all([
-    prisma.propertyReport.findMany({ skip, take: limit, orderBy: { created_at: 'desc' } }),
-    prisma.propertyReport.count(),
+    prisma.propertyReport.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { created_at: 'desc' },
+      include: { property: { select: { id: true, title: true, locality: true } } },
+    }),
+    prisma.propertyReport.count({ where }),
   ]);
   return { data, total, page, limit };
 };
@@ -369,8 +390,11 @@ export const deleteRentTracker = async (trackerId: string, userId: string) => {
 export const listAllPropertyLocalities = () =>
   prisma.propertyLocality.findMany({ orderBy: { created_at: 'desc' } });
 
-export const createPropertyLocalityRow = (data: { name: string; city_id?: string | null; area_id?: string | null; status?: string }) =>
-  prisma.propertyLocality.create({ data });
+export const createPropertyLocalityRow = async (data: any) => {
+  let clean = nullifyEmptyStrings(data, ['city_id', 'area_id']);
+  clean = await validateFks(clean, { city_id: 'city', area_id: 'area' });
+  return prisma.propertyLocality.create({ data: clean });
+};
 
 export const updatePropertyLocalityRow = (id: string, data: object) =>
   prisma.propertyLocality.update({ where: { id }, data });

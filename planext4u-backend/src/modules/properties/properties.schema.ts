@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const optionalUrl = z.union([z.string().url(), z.literal('')]).optional();
+
 export const createPropertySchema = z.object({
   title: z.string().min(5).max(300),
   description: z.string().optional(),
@@ -16,16 +18,17 @@ export const createPropertySchema = z.object({
   furnishing: z.enum(['unfurnished', 'semi-furnished', 'furnished']).optional(),
   facing: z.string().optional(),
   age_years: z.number().int().min(0).optional(),
-  city_id: z.string().uuid().optional(),
-  area_id: z.string().uuid().optional(),
+  city_id: z.string().optional(),
+  area_id: z.string().optional(),
+  locality_id: z.string().optional(),
   locality: z.string().optional(),
   address: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
-  images: z.array(z.string().url()).default([]),
-  video_url: z.string().url().optional(),
+  images: z.array(z.string()).default([]),
+  video_url: optionalUrl,
   amenities: z.array(z.string()).default([]),
-});
+}).passthrough();
 
 export const updatePropertySchema = createPropertySchema.partial().extend({
   is_featured: z.boolean().optional(),
@@ -95,8 +98,8 @@ export const propertyReportStatusSchema = z.object({
 
 export const propertyLocalitySchema = z.object({
   name: z.string().min(1).max(200),
-  city_id: z.string().uuid().optional().nullable(),
-  area_id: z.string().uuid().optional().nullable(),
+  city_id: z.string().optional().nullable(),
+  area_id: z.string().optional().nullable(),
   status: z.string().max(50).optional(),
 });
 

@@ -15,6 +15,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api as http } from "@/lib/apiClient";
 import { toast } from "sonner";
+import { TableIdCell } from "@/components/admin/TableIdCell";
 
 interface VendorModalProps {
   vendor: Vendor | null;
@@ -142,7 +143,11 @@ export function VendorModal({ vendor, open, onOpenChange, mode, onSave, onCreate
             </div>
             <div>
               <span>{isCreate ? `New ${vendorType === "service" ? "Service" : "Product"} Vendor` : vendor?.business_name}</span>
-              {!isCreate && vendor && <p className="text-xs font-normal text-muted-foreground mt-0.5">{vendor.name} · {vendor.id}</p>}
+              {!isCreate && vendor && (
+                <p className="text-xs font-normal text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                  {vendor.name} · Ref. <TableIdCell value={vendor.id} />
+                </p>
+              )}
             </div>
           </DialogTitle>
           {!isCreate && vendor && (
@@ -420,7 +425,9 @@ export function VendorModal({ vendor, open, onOpenChange, mode, onSave, onCreate
                     <Button size="sm" onClick={handleTransactionIdSave} disabled={saving}>Save</Button>
                   </div>
                   {(vendor as any)?.plan_transaction_id && (
-                    <p className="text-xs text-muted-foreground mt-1">Current: <span className="font-mono">{(vendor as any).plan_transaction_id}</span></p>
+                    <p className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-1">
+                      Current: <TableIdCell value={String((vendor as any).plan_transaction_id)} />
+                    </p>
                   )}
                 </div>
 

@@ -26,6 +26,8 @@ export default function SocioDMChatPage() {
   const navigate = useNavigate();
   const { customerUser } = useAuth();
   const currentUserId = customerUser?.id || '';
+  /** Social messages use profile ids, not customer user ids */
+  const [mySocialProfileId, setMySocialProfileId] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [recipientProfile, setRecipientProfile] = useState<any>(null);
@@ -36,6 +38,14 @@ export default function SocioDMChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    http
+      .get<any>('/social/profiles/me')
+      .then((p) => setMySocialProfileId(p?.id || ''))
+      .catch(() => setMySocialProfileId(''));
+  }, [currentUserId]);
 
   // Load recipient profile
   useEffect(() => {
@@ -84,13 +94,13 @@ export default function SocioDMChatPage() {
       }));
       setMessages(data);
 
-      // Mark unread as read
-      const unread = data.filter(m => !m.is_read && m.sender_id !== currentUserId);
+      // Mark unread as read (sender is always a social profile id)
+      const unread = data.filter((m) => !m.is_read && m.sender_id !== mySocialProfileId);
       if (unread.length > 0) {
         http.patch(`/social/conversations/${conversationId}/messages/read`, {}).catch(() => {});
       }
     } catch {}
-  }, [conversationId, currentUserId]);
+  }, [conversationId, mySocialProfileId]);
 
   // Initial load + polling (every 3s)
   useEffect(() => {
@@ -106,7 +116,7 @@ export default function SocioDMChatPage() {
   }, [messages, isTyping]);
 
   const sendMessage = useCallback(async () => {
-    if (!newMessage.trim() || !currentUserId || !conversationId) return;
+    if (!newMessage.trim() || !mySocialProfileId || !conversationId) return;
 
     const content = newMessage.trim();
     setNewMessage('');
@@ -115,7 +125,7 @@ export default function SocioDMChatPage() {
     const optimisticMsg: Message = {
       id: crypto.randomUUID(),
       conversation_id: conversationId,
-      sender_id: currentUserId,
+      sender_id: mySocialProfileId,
       content,
       message_type: 'text',
       is_read: false,
@@ -131,9 +141,9 @@ export default function SocioDMChatPage() {
       toast.error('Failed to send message');
       setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
     }
-  }, [newMessage, currentUserId, conversationId, loadMessages]);
+  }, [newMessage, mySocialProfileId, conversationId, loadMessages]);
 
-  const isMine = (msg: Message) => msg.sender_id === currentUserId;
+  const isMine = (msg: Message) => msg.sender_id === mySocialProfileId;
 
   if (loading) {
     return (

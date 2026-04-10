@@ -51,7 +51,7 @@ export default function AdminServicesPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "title", label: "Title" },
+      { key: "id", label: "Ref." }, { key: "title", label: "Title" },
       { key: "vendor_name", label: "Vendor" }, { key: "price", label: "Price" },
       { key: "status", label: "Status" }, { key: "rating", label: "Rating" },
     ], "services");
@@ -79,7 +79,6 @@ export default function AdminServicesPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
           { key: "title", label: "Service", render: (s) => (
             <div><p className="font-medium">{s.emoji} {s.title}</p><p className="text-xs text-muted-foreground">{s.category_name}</p></div>
           )},

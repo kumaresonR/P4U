@@ -23,7 +23,7 @@ export const getFollowers    = async (req: Request, res: Response, next: NextFun
 export const getFollowing    = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getFollowing(req.params.id)); } catch (e) { next(e); } };
 
 export const getStories      = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const p = await svc.getOrCreateProfile(req.user!.id); sendSuccess(res, await svc.getActiveStories(p.id)); } catch (e) { next(e); } };
-export const createStory     = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const p = await svc.getOrCreateProfile(req.user!.id); sendCreated(res, await svc.createStory(p.id, req.body.media_urls)); } catch (e) { next(e); } };
+export const createStory     = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const p = await svc.getOrCreateProfile(req.user!.id); sendCreated(res, await svc.createStoryFromBody(p.id, req.body as Record<string, unknown>)); } catch (e) { next(e); } };
 
 export const getConversations = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const p = await svc.getOrCreateProfile(req.user!.id); sendSuccess(res, await svc.getConversations(p.id)); } catch (e) { next(e); } };
 export const getDMs           = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const p = await svc.getOrCreateProfile(req.user!.id); sendSuccess(res, await svc.getMessages(p.id, req.params.profileId, req)); } catch (e) { next(e); } };

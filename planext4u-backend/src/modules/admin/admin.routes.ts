@@ -5,6 +5,9 @@ import { prisma } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
 import { isAdmin, isCustomer } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
+import { uploadAny } from '../../middleware/upload';
+import { uploadFile, deleteFile } from '../../services/storage';
+import { AppError } from '../../middleware/errorHandler';
 import {
   bannerSchema, adSchema, popupSchema, cmsPageSchema,
   websiteQuerySchema, updateQuerySchema, createTicketSchema,
@@ -205,6 +208,69 @@ router.patch('/product-attribute-values/:id',  authenticate, isAdmin, async (req
 router.delete('/product-attribute-values/:id', authenticate, isAdmin, async (req, res, next) => {
   try {
     await prisma.productAttributeValue.delete({ where: { id: req.params.id } });
+    sendSuccess(res, null, 'Deleted');
+  } catch (e) { next(e); }
+});
+
+// ─── Media Library ───────────────────────────────────────────────────────────
+// List media (optionally filtered by folder)
+router.get('/media-library', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const { folder, per_page = '200' } = req.query as Record<string, string>;
+    const where: any = {};
+    if (folder) where.folder = folder;
+    const items = await prisma.mediaLibrary.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      take: Math.min(parseInt(per_page) || 200, 2000),
+    });
+    sendSuccess(res, items);
+  } catch (e) { next(e); }
+});
+
+// Upload to media library
+router.post('/media-library/upload', authenticate, isAdmin, uploadAny.single('file'), async (req: any, res, next) => {
+  try {
+    if (!req.file) throw new AppError('No file provided', 400);
+    const folder = (req.body?.folder as string) || (req.query.folder as string) || 'general';
+    const { url, key } = await uploadFile(req.file.buffer, req.file.mimetype, req.file.originalname, folder);
+    const isImage = req.file.mimetype.startsWith('image/');
+    const media = await prisma.mediaLibrary.create({
+      data: {
+        file_url: url,
+        s3_key: key,
+        file_type: isImage ? 'image' : (req.file.mimetype.startsWith('video/') ? 'video' : 'document'),
+        file_size: req.file.size,
+        file_name: req.file.originalname,
+        folder,
+        uploaded_by: req.user?.id,
+      },
+    });
+    sendSuccess(res, media, 'Uploaded');
+  } catch (e) { next(e); }
+});
+
+// Move/rename media (e.g. change folder)
+router.patch('/media-library/:id', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const allowed: any = {};
+    if (typeof req.body?.folder === 'string') allowed.folder = req.body.folder;
+    if (typeof req.body?.alt_text === 'string') allowed.alt_text = req.body.alt_text;
+    if (Array.isArray(req.body?.tags)) allowed.tags = req.body.tags;
+    const updated = await prisma.mediaLibrary.update({ where: { id: req.params.id }, data: allowed });
+    sendSuccess(res, updated, 'Updated');
+  } catch (e) { next(e); }
+});
+
+// Delete media
+router.delete('/media-library/:id', authenticate, isAdmin, async (req, res, next) => {
+  try {
+    const media = await prisma.mediaLibrary.findUnique({ where: { id: req.params.id } });
+    if (!media) throw new AppError('Media not found', 404);
+    if (media.s3_key) {
+      try { await deleteFile(media.s3_key); } catch { /* ignore storage errors */ }
+    }
+    await prisma.mediaLibrary.delete({ where: { id: req.params.id } });
     sendSuccess(res, null, 'Deleted');
   } catch (e) { next(e); }
 });

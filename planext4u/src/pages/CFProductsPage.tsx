@@ -22,7 +22,7 @@ export default function CFProductsPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "title", label: "Product" },
+      { key: "id", label: "Ref." }, { key: "title", label: "Product" },
       { key: "vendor_name", label: "Vendor" }, { key: "price", label: "Price" },
       { key: "status", label: "Status" }, { key: "created_at", label: "Created" },
     ], "cf_products");
@@ -39,7 +39,7 @@ export default function CFProductsPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "title", label: "Product", render: (p) => (
             <div><p className="font-medium">{p.emoji} {p.title}</p><p className="text-xs text-muted-foreground">{p.category_name}</p></div>
           )},

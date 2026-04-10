@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, User, Store, Package } from "lucide-react";
+import { TableIdCell } from "@/components/admin/TableIdCell";
 import { useState, useEffect } from "react";
 
 interface OrderModalProps {
@@ -53,7 +54,7 @@ export function OrderModal({ order, open, onOpenChange, mode, onSave }: OrderMod
               <ShoppingCart className="h-5 w-5 text-card" />
             </div>
             <div>
-              <span>{order.id}</span>
+              <TableIdCell value={order.id} className="text-base font-semibold text-foreground" />
               <p className="text-xs font-normal text-muted-foreground mt-0.5">
                 {new Date(order.created_at).toLocaleString()}
               </p>
@@ -154,15 +155,15 @@ export function OrderModal({ order, open, onOpenChange, mode, onSave }: OrderMod
             <span>₹{order.total.toLocaleString()}</span>
           </div>
           {(order as any).payment_reference_id && (
-            <div className="flex justify-between text-sm pt-2 border-t border-border/30">
-              <span className="text-muted-foreground">Payment Ref ID</span>
-              <span className="font-mono text-xs">{(order as any).payment_reference_id}</span>
+            <div className="flex justify-between text-sm pt-2 border-t border-border/30 gap-2">
+              <span className="text-muted-foreground shrink-0">Payment ref.</span>
+              <TableIdCell value={String((order as any).payment_reference_id)} className="text-xs text-right" />
             </div>
           )}
           {(order as any).razorpay_order_id && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Gateway Order ID</span>
-              <span className="font-mono text-xs">{(order as any).razorpay_order_id}</span>
+            <div className="flex justify-between text-sm gap-2">
+              <span className="text-muted-foreground shrink-0">Gateway order</span>
+              <TableIdCell value={String((order as any).razorpay_order_id)} className="text-xs text-right" />
             </div>
           )}
         </div>

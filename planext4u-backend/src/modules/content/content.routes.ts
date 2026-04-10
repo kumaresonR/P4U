@@ -132,7 +132,7 @@ router.post('/newsletter/subscribe', async (req: Request, res: Response, next: N
 // Onboarding screens (public) — frontend calls /content/onboarding-screens
 router.get('/onboarding-screens', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const screens = await prisma.onboardingScreen.findMany({ where: { is_active: true }, orderBy: { sort_order: 'asc' } });
+    const screens = await prisma.onboardingScreen.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } });
     sendSuccess(res, screens);
   } catch (e) { next(e); }
 });

@@ -1,6 +1,8 @@
 import { prisma } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { getPagination } from '../../utils/pagination';
+import { nullifyEmptyStrings, validateFks } from '../../utils/sanitize';
+import { normalizeBrowseSort, resolveServiceCategoryIds } from '../../utils/catalogCategoryFilter';
 import { Request } from 'express';
 
 export const listServices = async (req: Request) => {
@@ -26,16 +28,30 @@ export const listServices = async (req: Request) => {
 
 export const browseServices = async (req: Request) => {
   const { page, limit, skip } = getPagination(req);
-  const { search, category_id, city, sort = 'newest' } = req.query as Record<string, string>;
+  const q = req.query as Record<string, string>;
+  const { search, category_id, category: categoryName } = q;
+  const sort = normalizeBrowseSort(q.sort);
 
   const where: Record<string, unknown> = { status: 'active', is_available: true };
-  if (category_id) where.category_id = category_id;
+
+  const hadCategoryFilter = !!(category_id || categoryName);
+  let catIds: string[] = [];
+  if (category_id) {
+    catIds = await resolveServiceCategoryIds(category_id);
+  } else if (categoryName) {
+    catIds = await resolveServiceCategoryIds(categoryName);
+  }
+  if (hadCategoryFilter) {
+    where.category_id = catIds.length > 0 ? { in: catIds } : { in: [] };
+  }
+
   if (search) where.title = { contains: search, mode: 'insensitive' };
 
   const orderBy =
     sort === 'price_asc'  ? { price: 'asc' as const } :
     sort === 'price_desc' ? { price: 'desc' as const } :
     sort === 'rating'     ? { rating: 'desc' as const } :
+    sort === 'popular'    ? { reviews: 'desc' as const } :
     { created_at: 'desc' as const };
 
   const [data, total] = await Promise.all([
@@ -54,11 +70,26 @@ export const getService = async (id: string) => {
   return s;
 };
 
-export const createService = (data: object) =>
-  prisma.service.create({ data: data as Parameters<typeof prisma.service.create>[0]['data'] });
+export const createService = async (data: any) => {
+  let clean = nullifyEmptyStrings(data, ['vendor_id', 'category_id']);
+  if (!clean.vendor_id) throw new AppError('vendor_id is required to create a service', 400);
 
-export const updateService = (id: string, data: object) =>
-  prisma.service.update({ where: { id }, data });
+  const vendor = await prisma.vendor.findUnique({ where: { id: clean.vendor_id } });
+  if (!vendor) throw new AppError('Selected vendor not found', 400);
+
+  if (clean.category_id) {
+    const cat = await prisma.serviceCategory.findUnique({ where: { id: clean.category_id } });
+    if (!cat) clean.category_id = null;
+  }
+
+  return prisma.service.create({ data: clean });
+};
+
+export const updateService = async (id: string, data: any) => {
+  let clean = nullifyEmptyStrings(data, ['category_id']);
+  clean = await validateFks(clean, { category_id: 'serviceCategory' });
+  return prisma.service.update({ where: { id }, data: clean });
+};
 
 export const deleteService = (id: string) =>
   prisma.service.update({ where: { id }, data: { status: 'inactive' } });

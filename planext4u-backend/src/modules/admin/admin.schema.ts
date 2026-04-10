@@ -1,34 +1,37 @@
 import { z } from 'zod';
 
+const optionalUrl = z.union([z.string().url(), z.literal('')]).optional();
+const requiredUrlOrEmpty = z.union([z.string().url(), z.literal('')]);
+
 export const bannerSchema = z.object({
   title: z.string().min(2).max(200),
-  image: z.string().url(),
+  image: requiredUrlOrEmpty,
   link: z.string().optional(),
   placement: z.string().optional(),
   start_date: z.string().datetime().optional(),
   end_date: z.string().datetime().optional(),
   is_active: z.boolean().default(true),
   sort_order: z.number().int().default(0),
-});
+}).passthrough();
 
 export const adSchema = z.object({
   title: z.string().min(2).max(200),
-  image: z.string().url(),
+  image: requiredUrlOrEmpty,
   link: z.string().optional(),
   placement: z.string().min(1),
   start_date: z.string().datetime().optional(),
   end_date: z.string().datetime().optional(),
   is_active: z.boolean().default(true),
-});
+}).passthrough();
 
 export const popupSchema = z.object({
   title: z.string().min(2).max(200),
-  image: z.string().url(),
+  image: requiredUrlOrEmpty,
   link: z.string().optional(),
   start_date: z.string().datetime().optional(),
   end_date: z.string().datetime().optional(),
   is_active: z.boolean().default(true),
-});
+}).passthrough();
 
 export const cmsPageSchema = z.object({
   slug: z.string().min(2).max(200).regex(/^[a-z0-9-]+$/),
@@ -101,10 +104,10 @@ export const inventoryAdjustSchema = z.object({
 export const onboardingScreenSchema = z.object({
   title: z.string().min(2).max(200),
   description: z.string().max(500).optional(),
-  image_url: z.string().url(),
+  image_url: requiredUrlOrEmpty,
   display_order: z.number().int().min(0).default(0),
   is_active: z.boolean().default(true),
-});
+}).passthrough();
 
 export const homesCmsSchema = z.object({
   content_type: z.string().min(2).max(100),

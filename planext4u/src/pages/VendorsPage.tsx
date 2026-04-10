@@ -95,7 +95,7 @@ export default function VendorsPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "business_name", label: "Business" },
+      { key: "id", label: "Ref." }, { key: "business_name", label: "Business" },
       { key: "name", label: "Owner" }, { key: "email", label: "Email" },
       { key: "commission_rate", label: "Commission %" }, { key: "status", label: "Status" },
     ], "vendors");
@@ -129,7 +129,7 @@ export default function VendorsPage() {
 
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "business_name", label: "Business", render: (v) => (
             <div><p className="font-medium">{v.business_name}</p><p className="text-xs text-muted-foreground">{v.name}</p></div>
           )},

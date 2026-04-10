@@ -11,6 +11,8 @@ import { CustomerLayout } from "@/components/customer/CustomerLayout";
 import { api as http } from "@/lib/apiClient";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import { TableIdCell } from "@/components/admin/TableIdCell";
+import { normalizeCustomerOrderPayload, orderStatusToTrackingStep } from "@/lib/customer-order-normalize";
 
 const statusColor: Record<string, string> = {
   placed: "bg-primary/10 text-primary", paid: "bg-info/10 text-info", accepted: "bg-info/10 text-info",
@@ -36,7 +38,8 @@ export default function CustomerOrderDetailPage() {
   const { data: order, isLoading } = useQuery({
     queryKey: ["orderDetail", orderId],
     queryFn: async () => {
-      return await http.get(`/orders/${orderId}`);
+      const raw = await http.get(`/orders/${orderId}`);
+      return normalizeCustomerOrderPayload(raw);
     },
     enabled: !!orderId,
   });
@@ -53,7 +56,7 @@ export default function CustomerOrderDetailPage() {
     onError: () => toast.error("Failed to submit rating"),
   });
 
-  const currentStepIdx = order ? trackingSteps.findIndex(s => s.key === order.status) : -1;
+  const currentStepIdx = order ? orderStatusToTrackingStep(order.status) : -1;
   const items: any[] = order?.items || [];
 
   if (isLoading) {
@@ -217,9 +220,9 @@ export default function CustomerOrderDetailPage() {
         <Card className="p-4">
           <h3 className="text-sm font-semibold mb-3">Order Info</h3>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Order ID</span>
-              <span className="font-mono text-xs">{order.id}</span>
+            <div className="flex justify-between items-start gap-2">
+              <span className="text-muted-foreground shrink-0">Order ref.</span>
+              <TableIdCell value={order.id} className="text-xs text-right" />
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Placed on</span>
@@ -230,15 +233,15 @@ export default function CustomerOrderDetailPage() {
               <span className="text-success font-medium">Paid ✓</span>
             </div>
             {order.payment_reference_id && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Payment Ref ID</span>
-                <span className="font-mono text-xs">{order.payment_reference_id}</span>
+              <div className="flex justify-between items-start gap-2">
+                <span className="text-muted-foreground shrink-0">Payment ref.</span>
+                <TableIdCell value={String(order.payment_reference_id)} className="text-xs text-right" />
               </div>
             )}
             {order.razorpay_order_id && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Gateway Order ID</span>
-                <span className="font-mono text-xs">{order.razorpay_order_id}</span>
+              <div className="flex justify-between items-start gap-2">
+                <span className="text-muted-foreground shrink-0">Gateway order</span>
+                <TableIdCell value={String(order.razorpay_order_id)} className="text-xs text-right" />
               </div>
             )}
           </div>

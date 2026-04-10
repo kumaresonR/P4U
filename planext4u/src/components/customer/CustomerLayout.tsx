@@ -30,7 +30,12 @@ export function CustomerLayout({ children, hideNav, socialMode }: CustomerLayout
   const [selectedLocation, setSelectedLocation] = useState(loadSelectedLocation() || "JJ Nagar, Coimbator...");
 
   useEffect(() => {
-    api.getCart().then(items => setCartCount(items.reduce((s, i) => s + i.qty, 0)));
+    const refreshCart = () => {
+      api.getCart().then(items => setCartCount(items.reduce((s, i) => s + i.qty, 0)));
+    };
+    refreshCart();
+    window.addEventListener('p4u:cart-updated', refreshCart);
+    return () => window.removeEventListener('p4u:cart-updated', refreshCart);
   }, [location.pathname]);
 
   useEffect(() => {

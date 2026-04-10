@@ -21,7 +21,7 @@ export default function CFAreaPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "name", label: "Area" },
+      { key: "id", label: "Ref." }, { key: "name", label: "Area" },
       { key: "city_name", label: "City" }, { key: "pincode", label: "Pincode" },
       { key: "status", label: "Status" },
     ], "areas");
@@ -38,7 +38,7 @@ export default function CFAreaPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "name", label: "Area Name", render: (a) => <span className="font-medium">{a.name}</span> },
           { key: "city_name", label: "City" },
           { key: "pincode", label: "Pincode", render: (a) => <code className="text-xs bg-secondary px-2 py-0.5 rounded">{a.pincode}</code> },

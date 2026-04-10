@@ -21,6 +21,10 @@ export default function CustomerBrowsePage() {
   const ITEMS_PER_PAGE = 12;
   const categoryFilter = searchParams.get("category") || undefined;
   const searchFilter = searchParams.get("search") || undefined;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [categoryFilter, searchFilter]);
   const [cartCount, setCartCount] = useState(0);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -62,6 +66,11 @@ export default function CustomerBrowsePage() {
   });
 
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: api.getCategories });
+
+  const parentCategories = (categories ?? []).filter((c) => !c.parent_id);
+  const activeCategoryLabel =
+    parentCategories.find((c) => c.id === categoryFilter)?.name ||
+    categories?.find((c) => c.id === categoryFilter || c.name === categoryFilter)?.name;
 
   useEffect(() => {
     api.getCart().then(items => setCartCount(items.reduce((s, i) => s + i.qty, 0)));
@@ -123,7 +132,7 @@ export default function CustomerBrowsePage() {
       <div className="max-w-7xl mx-auto px-4 py-4 pb-36 md:pb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-xl font-bold">{categoryFilter || searchFilter || "All Products"}</h1>
+            <h1 className="text-xl font-bold">{searchFilter || activeCategoryLabel || (!categoryFilter ? "All Products" : "Products")}</h1>
             <p className="text-sm text-muted-foreground">{products?.length || 0} products{radiusInfo && ` · ${radiusInfo}`}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -171,11 +180,11 @@ export default function CustomerBrowsePage() {
                 <span className={`text-[11px] font-medium ${!categoryFilter ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>All</span>
               </div>
             </Link>
-            {categories?.map((c) => (
-              <Link key={c.id} to={`/app/browse?category=${c.name}`} className="shrink-0">
+            {parentCategories.map((c) => (
+              <Link key={c.id} to={`/app/browse?category=${encodeURIComponent(c.id)}`} className="shrink-0">
                 <div className="flex flex-col items-center gap-1.5 min-w-[70px]">
                   <div className={`h-14 w-14 rounded-2xl flex items-center justify-center border-2 transition-all overflow-hidden
-                    ${categoryFilter === c.name ? 'bg-primary/10 border-primary shadow-sm' : 'bg-card border-border/50 hover:border-primary/30'}`}>
+                    ${categoryFilter === c.id ? 'bg-primary/10 border-primary shadow-sm' : 'bg-card border-border/50 hover:border-primary/30'}`}>
                     {c.image && (c.image.startsWith('/') || c.image.startsWith('http')) ? (
                       <img src={c.image} alt={c.name} className="h-8 w-8 rounded-lg object-cover" />
                     ) : (
@@ -183,7 +192,7 @@ export default function CustomerBrowsePage() {
                     )}
                   </div>
                   <span className={`text-[11px] font-medium text-center leading-tight max-w-[70px] truncate
-                    ${categoryFilter === c.name ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{c.name}</span>
+                    ${categoryFilter === c.id ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{c.name}</span>
                 </div>
               </Link>
             ))}

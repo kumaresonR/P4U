@@ -11,7 +11,10 @@ import { Wrench, DollarSign, Trash2, ImageIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MediaLibraryPicker } from "@/components/admin/MediaLibraryPicker";
 import { api as http } from "@/lib/apiClient";
+import { TableIdCell } from "@/components/admin/TableIdCell";
 import { useQuery } from "@tanstack/react-query";
+
+// Note: useQuery still used by dbCategories below
 
 interface ServiceModalProps {
   service: Service | null;
@@ -37,10 +40,16 @@ export function ServiceModal({ service, open, onOpenChange, mode, onSave, onCrea
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
-  const { data: dbVendors } = useQuery({
-    queryKey: ["serviceVendorsForModal"],
-    queryFn: () => http.get<any[]>('/vendors', { status: 'active', per_page: 1000 } as any),
-  });
+  // Fetch vendors fresh on each modal open
+  const [dbVendors, setDbVendors] = useState<any[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    http.get<any[]>('/vendors', { per_page: 1000 } as any)
+      .then((result) => { if (!cancelled) setDbVendors(Array.isArray(result) ? result : []); })
+      .catch(() => { /* ignore */ });
+    return () => { cancelled = true; };
+  }, [open]);
 
   const { data: dbCategories } = useQuery({
     queryKey: ["serviceCategoriesForModal"],
@@ -100,7 +109,11 @@ export function ServiceModal({ service, open, onOpenChange, mode, onSave, onCrea
             </div>
             <div>
               <span>{isCreate ? "New Service" : service?.title}</span>
-              {!isCreate && service && <p className="text-xs font-normal text-muted-foreground mt-0.5">{service.id}</p>}
+              {!isCreate && service && (
+                <p className="text-xs font-normal text-muted-foreground mt-0.5 flex items-center gap-1">
+                  Ref. <TableIdCell value={service.id} />
+                </p>
+              )}
             </div>
           </DialogTitle>
           {!isCreate && service && (

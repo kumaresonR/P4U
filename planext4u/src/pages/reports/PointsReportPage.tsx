@@ -100,7 +100,7 @@ export default function PointsReportPage() {
     const data: any[] = Array.isArray(res) ? res : (res?.data || []);
     if (!data.length) return;
     exportToCSV(data, [
-      { key: "id", label: "ID" }, { key: "user_name", label: "Customer" },
+      { key: "id", label: "Ref." }, { key: "user_name", label: "Customer" },
       { key: "type", label: "Type" }, { key: "points", label: "Points" },
       { key: "description", label: "Description" }, { key: "created_at", label: "Date" },
     ], "points_statement");

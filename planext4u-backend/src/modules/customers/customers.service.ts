@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database';
 import { getPagination } from '../../utils/pagination';
 import { AppError } from '../../middleware/errorHandler';
+import { nullifyEmptyStrings, validateFks } from '../../utils/sanitize';
 import { Request } from 'express';
 
 export const listCustomers = async (req: Request) => {
@@ -56,11 +57,18 @@ export const createCustomer = async (data: any) => {
     ] },
   });
   if (exists) throw new AppError('Customer with this email or mobile already exists', 409);
-  return prisma.customer.create({ data });
+
+  let clean = nullifyEmptyStrings(data, ['email', 'city_id', 'area_id', 'occupation']);
+  clean = await validateFks(clean, { city_id: 'city', area_id: 'area' });
+
+  return prisma.customer.create({ data: clean });
 };
 
-export const updateCustomer = (id: string, data: object) =>
-  prisma.customer.update({ where: { id }, data });
+export const updateCustomer = async (id: string, data: any) => {
+  let clean = nullifyEmptyStrings(data, ['email', 'city_id', 'area_id', 'occupation']);
+  clean = await validateFks(clean, { city_id: 'city', area_id: 'area' });
+  return prisma.customer.update({ where: { id }, data: clean });
+};
 
 export const deleteCustomer = (id: string) =>
   prisma.customer.update({ where: { id }, data: { status: 'inactive' } });
@@ -95,7 +103,7 @@ export const getWallet = async (customerId: string) => {
     prisma.pointsTransaction.findMany({
       where: { user_id: customerId },
       orderBy: { created_at: 'desc' },
-      take: 50,
+      take: 200,
     }),
   ]);
   return { balance: customer?.wallet_points ?? 0, transactions };

@@ -64,7 +64,7 @@ export default function CustomersPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "name", label: "Name" },
+      { key: "id", label: "Ref." }, { key: "name", label: "Name" },
       { key: "email", label: "Email" }, { key: "mobile", label: "Mobile" },
       { key: "occupation", label: "Occupation" },
       { key: "wallet_points", label: "Points" }, { key: "referral_code", label: "Referral Code" },
@@ -90,7 +90,6 @@ export default function CustomersPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
           { key: "name", label: "Name" },
           { key: "email", label: "Email" },
           { key: "mobile", label: "Mobile" },

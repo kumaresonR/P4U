@@ -6,7 +6,17 @@ import { AuthRequest } from '../../types';
 export const list    = async (req: Request, res: Response, next: NextFunction) => { try { const { data, total, page, limit } = await svc.listProducts(req);   sendPaginated(res, data, total, page, limit); } catch (e) { next(e); } };
 export const browse  = async (req: Request, res: Response, next: NextFunction) => { try { const { data, total, page, limit } = await svc.browseProducts(req); sendPaginated(res, data, total, page, limit); } catch (e) { next(e); } };
 export const get     = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.getProduct(req.params.id)); } catch (e) { next(e); } };
-export const create  = async (req: Request, res: Response, next: NextFunction) => { try { sendCreated(res, await svc.createProduct({ ...req.body, vendor_id: (req as AuthRequest).user?.id || req.body.vendor_id })); } catch (e) { next(e); } };
+export const create = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as AuthRequest).user;
+    // Vendor self-service uses their own id; admin uses the vendor_id picked in the form
+    const isVendorSelfService = user?.role === 'vendor' || user?.role === 'service_vendor';
+    const data = isVendorSelfService
+      ? { ...req.body, vendor_id: user!.id }
+      : req.body;
+    sendCreated(res, await svc.createProduct(data));
+  } catch (e) { next(e); }
+};
 export const update  = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.updateProduct(req.params.id, req.body)); } catch (e) { next(e); } };
 export const remove  = async (req: Request, res: Response, next: NextFunction) => { try { await svc.deleteProduct(req.params.id); sendSuccess(res, null, 'Deleted'); } catch (e) { next(e); } };
 export const bulkDel = async (req: Request, res: Response, next: NextFunction) => { try { await svc.bulkDeleteProducts(req.body.ids); sendSuccess(res, null, 'Updated'); } catch (e) { next(e); } };

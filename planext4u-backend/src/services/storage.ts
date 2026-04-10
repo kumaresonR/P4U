@@ -28,7 +28,6 @@ export const uploadImage = async (
   const file = bucket.file(key);
   await file.save(compressed, {
     contentType: 'image/jpeg',
-    public: true,
     metadata: { cacheControl: 'public, max-age=31536000' },
   });
   return `https://storage.googleapis.com/${BUCKET}/${key}`;
@@ -45,7 +44,6 @@ export const uploadFile = async (
   const file = bucket.file(key);
   await file.save(buffer, {
     contentType: mimetype,
-    public: true,
     metadata: { cacheControl: 'public, max-age=31536000' },
   });
   return {

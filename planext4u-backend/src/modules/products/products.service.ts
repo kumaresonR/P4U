@@ -1,6 +1,8 @@
 import { prisma } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { getPagination } from '../../utils/pagination';
+import { nullifyEmptyStrings, validateFks } from '../../utils/sanitize';
+import { normalizeBrowseSort, resolveProductCategoryIds } from '../../utils/catalogCategoryFilter';
 import { Request } from 'express';
 
 const productInclude = {
@@ -33,10 +35,23 @@ export const listProducts = async (req: Request) => {
 
 export const browseProducts = async (req: Request) => {
   const { page, limit, skip } = getPagination(req);
-  const { search, category_id, sort = 'newest', min_price, max_price } = req.query as Record<string, string>;
+  const q = req.query as Record<string, string>;
+  const { search, category_id, category: categoryName, min_price, max_price } = q;
+  const sort = normalizeBrowseSort(q.sort);
 
   const where: Record<string, unknown> = { status: 'active', is_available: true };
-  if (category_id) where.category_id = category_id;
+
+  const hadCategoryFilter = !!(category_id || categoryName);
+  let catIds: string[] = [];
+  if (category_id) {
+    catIds = await resolveProductCategoryIds(category_id);
+  } else if (categoryName) {
+    catIds = await resolveProductCategoryIds(categoryName);
+  }
+  if (hadCategoryFilter) {
+    where.category_id = catIds.length > 0 ? { in: catIds } : { in: [] };
+  }
+
   if (search) where.title = { contains: search, mode: 'insensitive' };
   if (min_price || max_price) {
     where.price = {
@@ -68,11 +83,25 @@ export const getProduct = async (id: string) => {
   return p;
 };
 
-export const createProduct = (data: object) =>
-  prisma.product.create({ data: data as Parameters<typeof prisma.product.create>[0]['data'], include: productInclude });
+export const createProduct = async (data: any) => {
+  let clean = nullifyEmptyStrings(data, ['category_id', 'subcategory_id', 'tax_slab_id', 'vendor_id']);
+  clean = await validateFks(clean, {
+    vendor_id: 'vendor',
+    category_id: 'category',
+    tax_slab_id: 'taxSlab',
+  });
+  if (!clean.vendor_id) throw new AppError('vendor_id is required to create a product', 400);
+  return prisma.product.create({ data: clean, include: productInclude });
+};
 
-export const updateProduct = (id: string, data: object) =>
-  prisma.product.update({ where: { id }, data, include: productInclude });
+export const updateProduct = async (id: string, data: any) => {
+  let clean = nullifyEmptyStrings(data, ['category_id', 'subcategory_id', 'tax_slab_id']);
+  clean = await validateFks(clean, {
+    category_id: 'category',
+    tax_slab_id: 'taxSlab',
+  });
+  return prisma.product.update({ where: { id }, data: clean, include: productInclude });
+};
 
 export const deleteProduct = (id: string) =>
   prisma.product.update({ where: { id }, data: { status: 'inactive' } });

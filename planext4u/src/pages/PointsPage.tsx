@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api as http } from "@/lib/apiClient";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 const typeStyle: Record<string, string> = {
   welcome: "bg-primary/10 text-primary",
@@ -20,19 +21,42 @@ export default function PointsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
+    let alive = true;
+    const load = async () => {
       setLoading(true);
-      const [ptsRes, statsRes] = await Promise.all([
-        http.get<any>('/points-transactions', { per_page: 20 } as any),
-        http.get<any>('/admin/points-stats').catch(() => null),
-      ]);
-      setTransactions(Array.isArray(ptsRes) ? ptsRes : (ptsRes?.data || []));
-      if (statsRes) {
-        setStats({ totalIssued: statsRes.total_issued || 0, totalRedeemed: statsRes.total_redeemed || 0, welcomePts: statsRes.welcome_points || 0, referralPts: statsRes.referral_points || 0 });
+      try {
+        const pt = await http.paginate<any>('/admin/points-transactions', { per_page: 20 });
+        if (!alive) return;
+        const rows = pt.data || [];
+        setTransactions(
+          rows.map((t: any) => ({
+            ...t,
+            user_name: t.user_name || t.customer?.name || t.customer?.mobile || 'Customer',
+          })),
+        );
+        const report = await http.get<{ by_type?: { type: string; _sum: { points: number | null } }[] }>('/admin/reports/points').catch(() => null);
+        if (!alive || !report?.by_type) return;
+        const sum = (type: string) =>
+          report.by_type!.filter((r) => r.type === type).reduce((s, r) => s + (r._sum?.points ?? 0), 0);
+        setStats({
+          welcomePts: sum('welcome'),
+          referralPts: sum('referral'),
+          totalRedeemed: Math.abs(sum('redemption')),
+          totalIssued: sum('welcome') + sum('referral') + sum('order_reward'),
+        });
+      } catch {
+        if (alive) {
+          toast.error('Failed to load points data');
+          setTransactions([]);
+        }
+      } finally {
+        if (alive) setLoading(false);
       }
-      setLoading(false);
     };
-    fetch();
+    load();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   return (

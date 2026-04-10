@@ -21,7 +21,7 @@ export default function CFCityPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "name", label: "City" },
+      { key: "id", label: "Ref." }, { key: "name", label: "City" },
       { key: "state", label: "State" }, { key: "area_count", label: "Areas" },
       { key: "status", label: "Status" },
     ], "cities");
@@ -38,7 +38,7 @@ export default function CFCityPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "name", label: "City Name", render: (c) => <span className="font-medium">{c.name}</span> },
           { key: "state", label: "State" },
           { key: "area_count", label: "Areas", render: (c) => <span className="font-semibold">{c.area_count}</span> },

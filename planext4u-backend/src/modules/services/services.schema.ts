@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
+const optionalUrl = z.union([z.string().url(), z.literal('')]).optional();
+
 export const createServiceSchema = z.object({
+  vendor_id: z.string().optional(),
   category_id: z.string().optional(),
   title: z.string().min(3).max(200),
   description: z.string().optional().default(''),
@@ -13,7 +16,8 @@ export const createServiceSchema = z.object({
   duration: z.string().optional(),
   service_area: z.string().optional(),
   emoji: z.string().optional(),
-});
+  youtube_video_url: optionalUrl,
+}).passthrough();
 
 export const updateServiceSchema = createServiceSchema.partial().extend({
   status: z.enum(['active', 'inactive', 'draft', 'pending_approval', 'rejected']).optional(),

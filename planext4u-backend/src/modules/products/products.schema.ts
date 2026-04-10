@@ -1,8 +1,13 @@
 import { z } from 'zod';
 
+// Accepts a URL or an empty string (form sends "" when blank)
+const optionalUrl = z.union([z.string().url(), z.literal('')]).optional();
+const optionalId = z.string().optional();
+
 export const createProductSchema = z.object({
-  category_id: z.string().uuid().optional(),
-  subcategory_id: z.string().uuid().optional(),
+  vendor_id: optionalId,
+  category_id: optionalId,
+  subcategory_id: optionalId,
   title: z.string().min(3).max(200),
   slug: z.string().optional(),
   short_description: z.string().max(500).optional(),
@@ -17,16 +22,16 @@ export const createProductSchema = z.object({
   stock: z.number().int().min(0).default(0),
   manage_stock: z.boolean().default(true),
   weight: z.number().positive().optional(),
-  images: z.array(z.string().url()).default([]),
-  thumbnail_image: z.string().url().optional(),
-  banner_image: z.string().url().optional(),
-  youtube_video_url: z.string().url().optional(),
+  images: z.array(z.string()).default([]),
+  thumbnail_image: optionalUrl,
+  banner_image: optionalUrl,
+  youtube_video_url: optionalUrl,
   product_type: z.enum(['simple', 'variable', 'service']).default('simple'),
   promise_p4u: z.string().optional(),
   helpline_number: z.string().optional(),
   meta_title: z.string().optional(),
   meta_description: z.string().optional(),
-});
+}).passthrough();
 
 export const updateProductSchema = createProductSchema.partial().extend({
   status: z.enum(['active', 'inactive', 'draft', 'pending_approval', 'rejected']).optional(),

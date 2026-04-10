@@ -58,7 +58,7 @@ export default function BannersPage() {
 
   const handleExport = () => {
     exportToCSV(allData, [
-      { key: "id", label: "ID" }, { key: "title", label: "Title" },
+      { key: "id", label: "Ref." }, { key: "title", label: "Title" },
       { key: "subtitle", label: "Subtitle" }, { key: "link", label: "Link" },
       { key: "priority", label: "Priority" }, { key: "status", label: "Status" },
     ], "banners");
@@ -80,7 +80,7 @@ export default function BannersPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "preview", label: "Preview", render: (b) => b.desktop_image ? (
             <img src={b.desktop_image} alt={b.title} className="h-10 w-20 rounded object-cover" />
           ) : <div className={`h-10 w-20 rounded bg-gradient-to-r ${b.gradient || 'from-primary to-primary/70'}`} /> },

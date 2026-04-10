@@ -1,6 +1,6 @@
 node_modules/
 dist/
-.env
+# .env is tracked from repo root (.gitignore exceptions); do not add secrets for production here
 *.log
 coverage/
 .DS_Store

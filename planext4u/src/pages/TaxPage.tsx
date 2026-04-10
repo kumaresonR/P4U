@@ -20,7 +20,7 @@ export default function TaxPage() {
   const handleExport = () => {
     if (!data) return;
     exportToCSV(data.data, [
-      { key: "id", label: "ID" }, { key: "name", label: "Name" },
+      { key: "id", label: "Ref." }, { key: "name", label: "Name" },
       { key: "rate", label: "Rate %" }, { key: "type", label: "Type" },
       { key: "applied_to", label: "Applied To" }, { key: "status", label: "Status" },
     ], "tax_config");
@@ -37,7 +37,7 @@ export default function TaxPage() {
       </div>
       <DataTable
         columns={[
-          { key: "id", label: "ID" },
+          { key: "id", label: "Ref." },
           { key: "name", label: "Tax Name", render: (t) => <span className="font-medium">{t.name}</span> },
           { key: "rate", label: "Rate", render: (t) => <span className="font-semibold">{t.rate}%</span> },
           { key: "type", label: "Type", render: (t) => (

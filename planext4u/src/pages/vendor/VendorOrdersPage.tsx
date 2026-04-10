@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { api, Order } from "@/lib/api";
 import { toast } from "sonner";
 import { Package, Truck, CheckCircle, Clock } from "lucide-react";
+import { TableIdCell } from "@/components/admin/TableIdCell";
 
 const statusStyle: Record<string, string> = {
   placed: "bg-primary/10 text-primary", paid: "bg-info/10 text-info", accepted: "bg-info/10 text-info",
@@ -90,7 +91,7 @@ export default function VendorOrdersPage() {
         <div className="flex items-start justify-between mb-2">
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold font-mono">{o.id}</p>
+              <TableIdCell value={o.id} className="text-sm font-semibold text-foreground" />
               <Badge className={`${statusStyle[o.status] || ''} border-0 text-[10px]`}>{o.status.replace("_", " ")}</Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{customerDisplay} • {new Date(o.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</p>

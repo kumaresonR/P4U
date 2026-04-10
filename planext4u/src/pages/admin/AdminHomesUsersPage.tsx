@@ -67,7 +67,7 @@ export default function AdminHomesUsersPage() {
 
   const columns = [
     { key: "user_name", label: "Name", render: (u: any) => <p className="text-sm font-medium">{u.user_name}</p> },
-    { key: "user_id", label: "ID", render: (u: any) => <code className="text-[10px] bg-muted px-1 rounded">{u.user_id?.slice(0, 12)}...</code> },
+    { key: "user_id", label: "Ref." },
     { key: "listing_count", label: "Listings", render: (u: any) => <Badge variant="outline" className="text-[10px]">{u.listing_count}</Badge> },
     { key: "actions", label: "", render: (u: any) => (
       <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); setSelectedUser(u); }}>

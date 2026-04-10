@@ -28,7 +28,7 @@ export function usePostLike(postId: string) {
     queryKey: ['social-like-count', postId],
     queryFn: async () => {
       const res = await http.get<any>(`/social/posts/${postId}`).catch(() => null);
-      return res?.like_count || 0;
+      return res?.likes_count ?? res?.like_count ?? 0;
     },
     enabled: !!postId,
   });
@@ -177,12 +177,21 @@ export function useFollow(targetUserId: string) {
 }
 
 // ─── POSTS (feed) ────────────────────────────
+function unwrapFeedPayload(res: any): any[] {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  const d = res.data;
+  if (Array.isArray(d)) return d;
+  if (d && Array.isArray(d.data)) return d.data;
+  return [];
+}
+
 export function useSocialFeed(mode: 'following' | 'for_you' = 'for_you') {
   return useQuery({
     queryKey: ['social-feed', mode],
     queryFn: async () => {
       const res = await http.get<any>('/social/feed', { mode, per_page: 20 } as any).catch(() => null);
-      return Array.isArray(res) ? res : (res?.data || []);
+      return unwrapFeedPayload(res);
     },
   });
 }

@@ -94,7 +94,7 @@ model Customer {
   id                   String    @id @default(uuid())
   name                 String
   mobile               String    @default("")
-  email                String    @unique @default("")
+  email                String?   @unique
   password_hash        String?
   avatar               String?   @default("")
   city_id              String?
@@ -224,20 +224,25 @@ model Vendor {
   total_products   Int      @default(0)
   total_orders     Int      @default(0)
   total_revenue    Float    @default(0)
-  gst_number       String?  @default("")
-  pan_number       String?  @default("")
-  kyc_status       String?  @default("pending")
-  status           String   @default("pending")
-  rejection_reason String?  @default("")
-  fcm_tokens       String[] @default([])
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  gst_number          String?  @default("")
+  pan_number          String?  @default("")
+  kyc_status          String?  @default("pending")
+  status              String   @default("pending")
+  rejection_reason    String?  @default("")
+  membership          String   @default("basic")
+  plan_payment_status String   @default("unpaid")
+  plan_transaction_id String?  @default("")
+  shop_photo_url      String?  @default("")
+  fcm_tokens          String[] @default([])
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
   plan        VendorPlan?       @relation(fields: [plan_id], references: [id])
   category    Category?         @relation(fields: [category_id], references: [id])
   city        City?             @relation(fields: [city_id], references: [id])
   area        Area?             @relation(fields: [area_id], references: [id])
   products    Product[]
+  services    Service[]
   orders      Order[]
   settlements Settlement[]
   bankAccount VendorBankAccount?
@@ -331,7 +336,6 @@ model ServiceVendor {
   category   ServiceCategory? @relation(fields: [category_id], references: [id])
   city       City?            @relation(fields: [city_id], references: [id])
   area       Area?            @relation(fields: [area_id], references: [id])
-  services   Service[]
   mediaFiles MediaLibrary[]
 
   @@map("service_vendors")
@@ -573,7 +577,7 @@ model Service {
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
-  vendor          ServiceVendor    @relation(fields: [vendor_id], references: [id])
+  vendor          Vendor           @relation(fields: [vendor_id], references: [id])
   category        ServiceCategory? @relation(fields: [category_id], references: [id])
   serviceBookings ServiceBooking[]
 
@@ -687,19 +691,23 @@ model Payment {
 // ─── Loyalty & Referrals ──────────────────────────────────────────────────────
 
 model PointsTransaction {
-  id          String    @id @default(uuid())
-  user_id     String
-  order_id    String?
-  type        String
-  points      Int       @default(0)
-  description String    @default("")
-  user_name   String?   @default("")
-  expires_at  DateTime?
-  is_expired  Boolean   @default(false)
-  created_at  DateTime  @default(now())
+  id                       String    @id @default(uuid())
+  user_id                  String
+  order_id                 String?
+  /// Set when type is social_post_like_received — for reversal on unlike
+  social_post_id           String?
+  social_liker_profile_id  String?
+  type                     String
+  points                   Int       @default(0)
+  description              String    @default("")
+  user_name                String?   @default("")
+  expires_at               DateTime?
+  is_expired               Boolean   @default(false)
+  created_at               DateTime    @default(now())
 
   customer    Customer  @relation(fields: [user_id], references: [id])
 
+  @@index([user_id, social_post_id, social_liker_profile_id])
   @@map("points_transactions")
 }
 
