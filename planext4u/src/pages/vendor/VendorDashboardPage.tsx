@@ -21,22 +21,36 @@ const revenueData = [
 
 export default function VendorDashboardPage() {
   const { vendorUser } = useAuth();
-  const vendorId = vendorUser?.vendor_id || "VND-001";
+  const vendorId = vendorUser?.vendor_id || vendorUser?.id || "";
 
   const { data, isLoading } = useQuery({
     queryKey: ["vendorDashboard", vendorId],
     queryFn: () => api.getVendorDashboard(vendorId),
+    enabled: !!vendorId,
   });
+
+  // Backend returns { vendor, recentOrders, pendingSettlements } — normalize for UI
+  const vendor = data?.vendor as Record<string, unknown> | undefined;
+  const orders = Array.isArray(data?.recentOrders)
+    ? data!.recentOrders
+    : Array.isArray((data as any)?.orders)
+      ? (data as any).orders
+      : [];
+  const totalRevenue = typeof vendor?.total_revenue === "number" ? vendor.total_revenue : 0;
+  const activeOrdersCount = orders.filter(
+    (o: { status?: string }) => !["completed", "cancelled", "delivered"].includes(o.status || ""),
+  ).length;
+  const productCount = typeof vendor?.total_products === "number" ? vendor.total_products : 0;
 
   return (
     <VendorLayout title="Dashboard">
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {isLoading ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />) : [
-            { icon: DollarSign, label: "Total Revenue", value: `₹${(data?.todayRevenue || 0).toLocaleString()}`, trend: `${data?.orders.length} orders` },
-            { icon: ShoppingCart, label: "Active Orders", value: String(data?.activeOrders || 0), trend: "" },
-            { icon: Package, label: "Products", value: String(data?.products.length || 0), trend: "" },
-            { icon: Star, label: "Rating", value: String((data?.vendor as any)?.rating || 0), trend: `${(data?.vendor as any)?.total_orders || 0} total orders` },
+            { icon: DollarSign, label: "Total Revenue", value: `₹${Number(totalRevenue).toLocaleString()}`, trend: `${orders.length} recent orders` },
+            { icon: ShoppingCart, label: "Active Orders", value: String(activeOrdersCount), trend: "" },
+            { icon: Package, label: "Products", value: String(productCount), trend: "" },
+            { icon: Star, label: "Rating", value: String(vendor?.rating ?? 0), trend: `${vendor?.total_orders ?? 0} total orders` },
           ].map((s) => (
             <Card key={s.label} className="p-4">
               <div className="flex items-center justify-between mb-2"><span className="text-xs text-muted-foreground">{s.label}</span><s.icon className="h-4 w-4 text-muted-foreground" /></div>
@@ -66,14 +80,14 @@ export default function VendorDashboardPage() {
               <Link to="/vendor/orders" className="text-xs text-primary hover:underline">View All</Link>
             </div>
             <div className="space-y-3">
-              {data?.orders.slice(0, 4).map((o) => (
+              {orders.slice(0, 4).map((o: any) => (
                 <div key={o.id} className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium">{o.id}</p>
-                    <p className="text-[11px] text-muted-foreground">{o.customer_name}</p>
+                    <p className="text-[11px] text-muted-foreground">{o.customer?.name ?? o.customer_name ?? "Customer"}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-bold">₹{o.total.toLocaleString()}</p>
+                    <p className="text-xs font-bold">₹{Number(o.total ?? 0).toLocaleString()}</p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${statusColor[o.status] || 'bg-muted'}`}>{o.status.replace('_', ' ')}</span>
                   </div>
                 </div>

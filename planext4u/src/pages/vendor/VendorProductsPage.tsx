@@ -1,140 +1,78 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, MoreVertical, Edit, Trash2, Upload, X } from "lucide-react";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Search, MoreVertical, Edit, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VendorLayout } from "@/components/vendor/VendorLayout";
 import { useAuth } from "@/lib/auth";
 import { api as http } from "@/lib/apiClient";
+import { Product } from "@/lib/api";
+import { ProductModal } from "@/components/admin/modals/ProductModal";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const statusStyle: Record<string, string> = {
-  active: "bg-success/10 text-success", inactive: "bg-destructive/10 text-destructive", draft: "bg-muted text-muted-foreground",
-};
-
-interface ProductForm {
-  title: string; description: string; short_description: string; long_description: string;
-  price: string; tax: string; discount: string; discount_type: string;
-  stock: string; category_id: string; emoji: string; status: string;
-  image: string; sku: string; images: string[]; youtube_video_url: string;
-  inactivation_reason: string; tax_slab_id: string; product_attributes: any[];
-  product_type: string; slug: string; meta_title: string; meta_description: string;
-}
-
-const emptyForm: ProductForm = {
-  title: "", description: "", short_description: "", long_description: "",
-  price: "", tax: "", discount: "0", discount_type: "fixed",
-  stock: "", category_id: "", emoji: "📦", status: "draft",
-  image: "", sku: "", images: [], youtube_video_url: "",
-  inactivation_reason: "", tax_slab_id: "", product_attributes: [],
-  product_type: "simple", slug: "", meta_title: "", meta_description: "",
+  active: "bg-success/10 text-success",
+  inactive: "bg-destructive/10 text-destructive",
+  draft: "bg-muted text-muted-foreground",
+  pending_approval: "bg-warning/10 text-warning",
+  rejected: "bg-destructive/10 text-destructive",
 };
 
 export default function VendorProductsPage() {
   const { vendorUser } = useAuth();
-  const vendorId = vendorUser?.vendor_id || "VND-001";
+  const vendorId = vendorUser?.vendor_id || vendorUser?.id || "";
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<ProductForm>(emptyForm);
-  const [newImageUrl, setNewImageUrl] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showCsvDialog, setShowCsvDialog] = useState(false);
+
+  const [selected, setSelected] = useState<Product | null>(null);
+  const [modalMode, setModalMode] = useState<"view" | "edit" | "create">("create");
+  const [modalOpen, setModalOpen] = useState(false);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["vendorProducts", vendorId],
-    queryFn: () => http.get<any[]>('/vendor/products'),
+    queryFn: () => http.get<Product[]>("/products/vendor/my"),
+    enabled: !!vendorId,
   });
 
-  const { data: categories } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => http.get<any[]>('/master/categories', { status: 'active' } as any, { auth: false }),
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: async (formData: ProductForm) => {
-      const payload: any = {
-        title: formData.title, description: formData.description,
-        short_description: formData.short_description, long_description: formData.long_description,
-        price: parseFloat(formData.price) || 0, tax: parseFloat(formData.tax) || 0,
-        discount: parseFloat(formData.discount) || 0, discount_type: formData.discount_type,
-        stock: parseInt(formData.stock) || 0,
-        category_id: formData.category_id || null,
-        category_name: categories?.find(c => c.id === formData.category_id)?.name || "",
-        emoji: formData.emoji, status: formData.status,
-        vendor_id: vendorId, vendor_name: vendorUser?.name || "",
-        image: formData.image || formData.images[0] || null,
-        images: formData.images,
-        youtube_video_url: formData.youtube_video_url || "",
-        inactivation_reason: formData.inactivation_reason || "",
-        tax_slab_id: formData.tax_slab_id || null,
-        product_attributes: formData.product_attributes || [],
-        product_type: formData.product_type || "simple",
-        sku: formData.sku || null,
-        slug: formData.slug || null,
-        meta_title: formData.meta_title || "",
-        meta_description: formData.meta_description || "",
-      };
-      if (editingId) {
-        await http.patch(`/vendor/products/${editingId}`, payload);
-      } else {
-        await http.post('/vendor/products', payload);
-      }
+  const handleSave = useCallback(
+    async (id: string, updates: Partial<Product>) => {
+      await http.put(`/products/vendor/my/${id}`, updates);
+      toast.success("Product updated");
+      await qc.invalidateQueries({ queryKey: ["vendorProducts"] });
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendorProducts"] });
-      setModalOpen(false); setEditingId(null); setForm(emptyForm);
-      toast.success(editingId ? "Product updated" : "Product created for approval");
+    [qc],
+  );
+
+  const handleCreate = useCallback(
+    async (data: Partial<Product>) => {
+      await http.post("/products/vendor/my", data);
+      toast.success("Product submitted");
+      await qc.invalidateQueries({ queryKey: ["vendorProducts"] });
     },
-    onError: (err: any) => toast.error(err.message || "Failed to save product"),
-  });
+    [qc],
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => http.delete(`/vendor/products/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["vendorProducts"] }); toast.success("Product deleted"); },
-  });
+  const handleDelete = useCallback(
+    async (id: string) => {
+      await http.delete(`/products/vendor/my/${id}`);
+      toast.success("Product removed");
+      await qc.invalidateQueries({ queryKey: ["vendorProducts"] });
+    },
+    [qc],
+  );
 
-  const isApproved = (p: any) => p.status === "active";
-
-  const openEdit = (p: any) => {
-    setEditingId(p.id);
-    setForm({
-      title: p.title, description: p.description,
-      short_description: p.short_description || "", long_description: p.long_description || "",
-      price: String(p.price), tax: String(p.tax),
-      discount: String(p.discount), discount_type: p.discount_type || "fixed",
-      stock: String(p.stock || 0), category_id: p.category_id || "",
-      emoji: p.emoji || "📦", status: p.status, image: p.image || "", sku: p.sku || "",
-      images: Array.isArray(p.images) ? p.images : p.image ? [p.image] : [],
-      youtube_video_url: p.youtube_video_url || "",
-      inactivation_reason: p.inactivation_reason || "",
-      tax_slab_id: p.tax_slab_id || "",
-      product_attributes: p.product_attributes || [],
-      product_type: p.product_type || "simple",
-      slug: p.slug || "", meta_title: p.meta_title || "", meta_description: p.meta_description || "",
-    });
+  const openModal = (product: Product | null, mode: "view" | "edit" | "create") => {
+    setSelected(product);
+    setModalMode(mode);
     setModalOpen(true);
-  };
-
-  const addImageUrl = () => {
-    if (newImageUrl.trim()) {
-      setForm({ ...form, images: [...form.images, newImageUrl.trim()], image: form.image || newImageUrl.trim() });
-      setNewImageUrl("");
-    }
-  };
-
-  const removeImage = (idx: number) => {
-    const updated = form.images.filter((_, i) => i !== idx);
-    setForm({ ...form, images: updated, image: updated[0] || "" });
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,38 +81,50 @@ export default function VendorProductsPage() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const text = ev.target?.result as string;
-      const lines = text.split('\n').filter(l => l.trim());
-      if (lines.length < 2) { toast.error("CSV must have header + data rows"); return; }
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const lines = text.split("\n").filter((l) => l.trim());
+      if (lines.length < 2) {
+        toast.error("CSV must have header + data rows");
+        return;
+      }
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
       let count = 0;
       for (let i = 1; i < lines.length; i++) {
-        const vals = lines[i].split(',').map(v => v.trim());
-        const row: any = {};
-        headers.forEach((h, j) => { row[h] = vals[j] || ""; });
-        const id = `PRD-${Date.now().toString(36).toUpperCase()}${i}`;
-        await http.post('/vendor/products', {
+        const vals = lines[i].split(",").map((v) => v.trim());
+        const row: Record<string, string> = {};
+        headers.forEach((h, j) => {
+          row[h] = vals[j] || "";
+        });
+        await http.post("/products/vendor/my", {
           title: row.title || row.name || `Product ${i}`,
-          description: row.description || "", price: parseFloat(row.price) || 0,
-          tax: parseFloat(row.tax) || 0, discount: parseFloat(row.discount) || 0,
-          stock: parseInt(row.stock) || 0, status: "draft", emoji: row.emoji || "📦",
+          description: row.description || "",
+          price: parseFloat(row.price) || 0,
+          tax: parseFloat(row.tax) || 0,
+          discount: parseFloat(row.discount) || 0,
+          stock: parseInt(row.stock, 10) || 0,
+          status: "draft",
+          emoji: row.emoji || "📦",
           image: row.image || null,
         });
         count++;
       }
-      toast.success(`${count} products imported! They'll appear after admin approval.`);
+      toast.success(`${count} products imported`);
       qc.invalidateQueries({ queryKey: ["vendorProducts"] });
       setShowCsvDialog(false);
     };
     reader.readAsText(file);
   };
 
-  const clearFilters = () => { setSearch(""); setStatusFilter(""); };
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+  };
 
-  const filtered = products?.filter((p) => {
-    if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
-    if (statusFilter && p.status !== statusFilter) return false;
-    return true;
-  }) || [];
+  const filtered =
+    products?.filter((p) => {
+      if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      return true;
+    }) || [];
 
   return (
     <VendorLayout title={`My Products (${filtered.length})`}>
@@ -182,36 +132,60 @@ export default function VendorProductsPage() {
         <div className="flex items-center gap-3 mb-4 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search products..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input
+              placeholder="Search products..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[120px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="pending_approval">Pending</SelectItem>
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
-          {(search || statusFilter) && <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters}>Clear</Button>}
-          <Button variant="outline" onClick={() => setShowCsvDialog(true)}><Upload className="h-4 w-4 mr-1" /> CSV</Button>
-          <Button onClick={() => { setEditingId(null); setForm(emptyForm); setModalOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Add Product</Button>
+          {(search || statusFilter !== "all") && (
+            <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters}>
+              Clear
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setShowCsvDialog(true)}>
+            <Upload className="h-4 w-4 mr-1" /> CSV
+          </Button>
+          <Button onClick={() => openModal(null, "create")}>
+            <Plus className="h-4 w-4 mr-1" /> Add Product
+          </Button>
         </div>
 
         <div className="space-y-3">
-          {isLoading ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />) :
-            filtered.length === 0 ? (
-              <Card className="p-8 text-center"><p className="text-muted-foreground">No products yet. Click "Add Product" to get started!</p></Card>
-            ) :
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
+          ) : filtered.length === 0 ? (
+            <Card className="p-8 text-center">
+              <p className="text-muted-foreground">No products yet. Click &quot;Add Product&quot; for the full editor (same as admin).</p>
+            </Card>
+          ) : (
             filtered.map((p) => (
               <Card key={p.id} className="p-4 flex items-center gap-4">
                 <div className="h-14 w-14 bg-secondary/30 rounded-xl flex items-center justify-center text-2xl shrink-0 overflow-hidden">
-                  {p.image ? <img src={p.image} alt="" className="w-full h-full object-cover" /> : <span>{p.emoji || "📦"}</span>}
+                  {p.image ? (
+                    <img src={p.image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{p.emoji || "📦"}</span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-medium truncate">{p.title}</h3>
-                    <Badge className={`${statusStyle[p.status] || ''} border-0 text-[10px]`}>{p.status}</Badge>
+                    <Badge className={`${statusStyle[p.status] || ""} border-0 text-[10px]`}>{p.status}</Badge>
                   </div>
                   <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                     <span>₹{Number(p.price).toLocaleString()}</span>
@@ -220,105 +194,65 @@ export default function VendorProductsPage() {
                   </div>
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => openEdit(p)}><Edit className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(p.id)}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openModal(p, "view")}>
+                      <Edit className="h-4 w-4 mr-2" /> View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openModal(p, "edit")}>
+                      <Edit className="h-4 w-4 mr-2" /> Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(p.id)}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Delete
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </Card>
-            ))}
+            ))
+          )}
         </div>
       </div>
 
-      {/* Product Form Dialog */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Product" : "Add New Product"}</DialogTitle>
-            <DialogDescription>{editingId ? "Update your product details." : "New products will be submitted for admin approval."}</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }} className="space-y-4">
-            <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required /></div>
-            <div><Label>Product Type</Label>
-              <Select value={form.product_type} onValueChange={(v) => setForm({ ...form, product_type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="simple">Simple</SelectItem>
-                  <SelectItem value="variable">Variable (has variants)</SelectItem>
-                  <SelectItem value="service">Service</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Image Upload */}
-            <div>
-              <Label>Product Images</Label>
-              <div className="flex gap-2 mt-1">
-                <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Paste image URL" className="flex-1" />
-                <Button type="button" size="sm" onClick={addImageUrl}>Add</Button>
-              </div>
-              {form.images.length > 0 && (
-                <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-                  {form.images.map((img, i) => (
-                    <div key={i} className="relative h-20 w-20 shrink-0 rounded-lg overflow-hidden bg-secondary/30">
-                      <img src={img} alt="" className="w-full h-full object-cover" />
-                      <button type="button" className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-card/80 flex items-center justify-center" onClick={() => removeImage(i)}><X className="h-3 w-3" /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+      <ProductModal
+        product={selected}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        mode={modalMode}
+        isVendor
+        preselectedVendorId={vendorId}
+        onSave={handleSave}
+        onCreate={handleCreate}
+        onDelete={handleDelete}
+      />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Price (₹)</Label><Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required /></div>
-              <div><Label>Tax (₹)</Label><Input type="number" value={form.tax} onChange={(e) => setForm({ ...form, tax: e.target.value })} /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Discount (₹)</Label><Input type="number" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} /></div>
-              <div><Label>Stock</Label><Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
-            </div>
-            <div><Label>Category</Label>
-              <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                <SelectContent>{categories?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div><Label>Emoji Icon</Label><Input value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value })} placeholder="📦" /></div>
-            <div>
-              <Label>YouTube Video URL</Label>
-              <Input value={form.youtube_video_url} onChange={(e) => setForm({ ...form, youtube_video_url: e.target.value })} placeholder="https://youtube.com/watch?v=..." />
-            </div>
-            <div><Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Saving..." : editingId ? "Update Product" : "Submit for Approval"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* CSV Upload Dialog */}
       <Dialog open={showCsvDialog} onOpenChange={setShowCsvDialog}>
         <DialogContent className="max-w-sm">
           <DialogTitle>Bulk Upload Products</DialogTitle>
           <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">Upload a CSV file with columns: title, description, price, tax, discount, stock, emoji, image</p>
+            <p className="text-sm text-muted-foreground">
+              Quick CSV (title, description, price, tax, discount, stock, emoji, image). For full fields, add products one-by-one.
+            </p>
             <Input type="file" accept=".csv" onChange={handleCsvUpload} />
-            <Button variant="outline" className="w-full" onClick={() => {
-              const csv = "title,description,price,tax,discount,stock,emoji,image\nSample Product,A great product,999,50,0,100,📦,";
-              const blob = new Blob([csv], { type: "text/csv" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a"); a.href = url; a.download = "product-template.csv"; a.click();
-            }}>Download Template</Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                const csv =
+                  "title,description,price,tax,discount,stock,emoji,image\nSample Product,A great product,999,50,0,100,📦,";
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "product-template.csv";
+                a.click();
+              }}
+            >
+              Download Template
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

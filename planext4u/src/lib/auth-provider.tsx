@@ -18,8 +18,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved.portal === 'admin') setUser(saved);
-        else if (saved.portal === 'vendor') setVendorUser(saved);
-        else if (saved.portal === 'customer') setCustomerUser(saved);
+        else if (saved.portal === 'vendor') {
+          setVendorUser({
+            id: saved.id,
+            vendor_id: saved.vendor_id || saved.id,
+            name: saved.name || 'Vendor',
+            email: saved.email || '',
+            business_name: saved.business_name || '',
+            portal: 'vendor',
+          });
+        } else if (saved.portal === 'customer') setCustomerUser(saved);
       }
     } catch { /* ignore */ }
     setIsLoading(false);

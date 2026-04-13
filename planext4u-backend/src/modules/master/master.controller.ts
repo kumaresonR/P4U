@@ -80,6 +80,18 @@ export const removeServiceCategory = async (req: Request, res: Response, next: N
 export const listTaxConfigs = async (_: Request, res: Response, next: NextFunction) => {
   try { sendSuccess(res, await svc.getTaxConfigs()); } catch (e) { next(e); }
 };
+
+export const listTaxSlabs = async (_: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.getTaxSlabs()); } catch (e) { next(e); }
+};
+
+export const listProductAttributesPublic = async (_: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.getProductAttributesPublic()); } catch (e) { next(e); }
+};
+
+export const listProductAttributeValuesPublic = async (_: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.getProductAttributeValuesPublic()); } catch (e) { next(e); }
+};
 export const addTaxConfig = async (req: Request, res: Response, next: NextFunction) => {
   try { sendCreated(res, await svc.createTaxConfig(req.body)); } catch (e) { next(e); }
 };

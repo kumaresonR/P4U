@@ -17,6 +17,9 @@ router.get('/occupations',        ctrl.listOccupations);
 router.get('/categories',         ctrl.listCategories);
 router.get('/service-categories', ctrl.listServiceCategories);
 router.get('/tax-configs',        ctrl.listTaxConfigs);
+router.get('/tax-slabs',          ctrl.listTaxSlabs);
+router.get('/product-attributes', ctrl.listProductAttributesPublic);
+router.get('/product-attribute-values', ctrl.listProductAttributeValuesPublic);
 router.get('/vendor-plans',       ctrl.listVendorPlans);
 
 // Admin-only write endpoints

@@ -123,3 +123,14 @@ export const updateVendorPlan = (id: string, data: object) =>
   prisma.vendorPlan.update({ where: { id }, data });
 
 export const deleteVendorPlan = (id: string) => prisma.vendorPlan.delete({ where: { id } });
+
+// ─── Product catalog (public read — shared by admin + vendor product forms) ───
+
+export const getTaxSlabs = () =>
+  prisma.taxSlab.findMany({ where: { is_active: true }, orderBy: { name: 'asc' } });
+
+export const getProductAttributesPublic = () =>
+  prisma.productAttribute.findMany({ where: { is_active: true }, orderBy: { sort_order: 'asc' } });
+
+export const getProductAttributeValuesPublic = () =>
+  prisma.productAttributeValue.findMany({ orderBy: { sort_order: 'asc' } });

@@ -56,11 +56,16 @@ interface MediaLibraryPickerProps {
   disabled?: boolean;
   className?: string;
   aspectRatio?: string;
+  /** Use `/vendor/media-library` (seller portal) instead of admin — requires `vendorId` */
+  apiMode?: 'admin' | 'vendor';
+  vendorId?: string;
 }
 
 export function MediaLibraryPicker({
   value, onChange, folder = "general",
   label = "Select Image", disabled = false, className = "", aspectRatio = "aspect-video",
+  apiMode = 'admin',
+  vendorId,
 }: MediaLibraryPickerProps) {
   const [open, setOpen] = useState(false);
 
@@ -129,15 +134,23 @@ export function MediaLibraryDialog({ open, onOpenChange, onSelect, defaultFolder
   const fetchMedia = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await http.get<MediaItem[]>('/admin/media-library', {
-        folder: folderFilter !== 'all' ? folderFilter : undefined,
+      const subfolder = folderFilter !== 'all' ? folderFilter : 'product-images';
+      const folderParam =
+        apiMode === 'vendor' && vendorId
+          ? `vendor-${vendorId}/${subfolder}`
+          : folderFilter !== 'all'
+            ? folderFilter
+            : undefined;
+      const path = apiMode === 'vendor' ? '/vendor/media-library' : '/admin/media-library';
+      const data = await http.get<MediaItem[]>(path, {
+        folder: folderParam,
         search: search || undefined,
         per_page: 200,
       } as any);
       setItems(data || []);
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [folderFilter, search]);
+  }, [folderFilter, search, apiMode, vendorId]);
 
   useEffect(() => {
     if (open) { fetchMedia(); setSelectedItem(null); }
@@ -160,11 +173,17 @@ export function MediaLibraryDialog({ open, onOpenChange, onSelect, defaultFolder
     try {
       const formData = new FormData();
       formData.append('file', previewFile.file);
-      formData.append('folder', uploadFolder);
+      const uploadFolderResolved =
+        apiMode === 'vendor' && vendorId
+          ? `vendor-${vendorId}/${FOLDER_ALIAS[uploadFolder] || uploadFolder}`
+          : uploadFolder;
+      formData.append('folder', uploadFolderResolved);
       formData.append('alt_text', altText);
 
       const token = tokenStore.getAccess();
-      const res = await fetch(`${BASE_URL}/admin/media-library/upload`, {
+      const uploadUrl =
+        apiMode === 'vendor' ? `${BASE_URL}/vendor/media-library/upload` : `${BASE_URL}/admin/media-library/upload`;
+      const res = await fetch(uploadUrl, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,

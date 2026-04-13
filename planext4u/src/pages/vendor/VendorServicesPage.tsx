@@ -34,7 +34,7 @@ const emptyForm: ServiceForm = {
 
 export default function VendorServicesPage() {
   const { vendorUser } = useAuth();
-  const vendorId = vendorUser?.vendor_id || "VND-001";
+  const vendorId = vendorUser?.vendor_id || vendorUser?.id || "";
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -44,12 +44,13 @@ export default function VendorServicesPage() {
 
   const { data: services, isLoading } = useQuery({
     queryKey: ["vendorServices", vendorId],
-    queryFn: () => http.get<any[]>('/vendor/services'),
+    queryFn: () => http.get<any[]>('/services/vendor/my'),
+    enabled: !!vendorId,
   });
 
   const { data: categories } = useQuery({
     queryKey: ["serviceCategories"],
-    queryFn: () => http.get<any[]>('/master/categories', { type: 'service', status: 'active' } as any, { auth: false }),
+    queryFn: () => http.get<any[]>('/master/service-categories', undefined, { auth: false }),
   });
 
   const saveMutation = useMutation({
@@ -66,9 +67,9 @@ export default function VendorServicesPage() {
         image: formData.image || null,
       };
       if (editingId) {
-        await http.patch(`/vendor/services/${editingId}`, payload);
+        await http.put(`/services/vendor/my/${editingId}`, payload);
       } else {
-        await http.post('/vendor/services', payload);
+        await http.post('/services/vendor/my', payload);
       }
     },
     onSuccess: () => {
@@ -80,7 +81,7 @@ export default function VendorServicesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => http.delete(`/vendor/services/${id}`),
+    mutationFn: (id: string) => http.delete(`/services/vendor/my/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["vendorServices"] }); toast.success("Service deleted"); },
   });
 

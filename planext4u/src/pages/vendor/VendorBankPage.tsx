@@ -31,7 +31,7 @@ const emptyForm: BankForm = {
 
 export default function VendorBankPage() {
   const { vendorUser } = useAuth();
-  const vendorId = vendorUser?.vendor_id || "VND-001";
+  const vendorId = vendorUser?.vendor_id || vendorUser?.id || "";
   const qc = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<BankForm>(emptyForm);
@@ -39,6 +39,7 @@ export default function VendorBankPage() {
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["vendorBankAccounts", vendorId],
     queryFn: () => http.get<BankAccount[]>('/vendor/bank-accounts'),
+    enabled: !!vendorId,
   });
 
   const addMutation = useMutation({

@@ -5,6 +5,8 @@ import { isVendor } from '../../middleware/rbac';
 import { AppError } from '../../middleware/errorHandler';
 import { AuthRequest } from '../../types';
 import { prisma } from '../../config/database';
+import { uploadAny } from '../../middleware/upload';
+import { uploadFile, deleteFile } from '../../services/storage';
 import * as vendorSvc from '../vendors/vendors.service';
 import * as orderSvc from '../orders/orders.service';
 import * as productSvc from '../products/products.service';
@@ -114,6 +116,98 @@ router.get('/platform-vars', authenticate, isVendor, async (req: AuthRequest, re
       where: { key: { in: safeKeys.length ? safeKeys : ['razorpay_key_id'] } },
     });
     sendSuccess(res, vars.map((v) => ({ key: v.key, value: v.value })));
+  } catch (e) { next(e); }
+});
+
+// ─── Plan / company bank (frontend VendorProfilePage) ─────────────────────────
+
+router.get('/plans/:id', authenticate, isVendor, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const plan = await prisma.vendorPlan.findUnique({ where: { id: req.params.id } });
+    if (!plan) throw new AppError('Plan not found', 404);
+    sendSuccess(res, { ...plan, plan_name: plan.name });
+  } catch (e) { next(e); }
+});
+
+router.get('/company-bank-details', authenticate, isVendor, async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const vars = await prisma.platformVariable.findMany({
+      where: {
+        OR: [
+          { key: { contains: 'bank' } },
+          { key: { contains: 'upi' } },
+          { key: { contains: 'account' } },
+        ],
+      },
+    });
+    sendSuccess(res, vars);
+  } catch (e) { next(e); }
+});
+
+router.post('/background-image', authenticate, isVendor, uploadAny.single('file'), async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const f = (req as any).file as Express.Multer.File | undefined;
+    if (!f) throw new AppError('No file provided', 400);
+    const { url } = await uploadFile(f.buffer, f.mimetype, f.originalname, 'vendor-backgrounds');
+    await prisma.vendor.update({
+      where: { id: req.user!.id },
+      data: { shop_photo_url: url },
+    });
+    sendSuccess(res, { url }, 'Updated');
+  } catch (e) { next(e); }
+});
+
+// ─── Media library (vendor-scoped; mirrors admin routes under /vendor) ─────
+
+router.get('/media-library', authenticate, isVendor, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { folder, per_page = '50' } = req.query as Record<string, string>;
+    const where: Record<string, unknown> = { vendor_id: req.user!.id };
+    if (folder) where.folder = { contains: folder, mode: 'insensitive' };
+    const items = await prisma.mediaLibrary.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      take: Math.min(parseInt(per_page, 10) || 50, 200),
+    });
+    sendSuccess(res, items);
+  } catch (e) { next(e); }
+});
+
+router.post('/media-library/upload', authenticate, isVendor, uploadAny.single('file'), async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const f = (req as any).file as Express.Multer.File | undefined;
+    if (!f) throw new AppError('No file provided', 400);
+    const body = req.body as { folder?: string };
+    const folder = (body?.folder as string) || `vendor-${req.user!.id}/general`;
+    const { url, key } = await uploadFile(f.buffer, f.mimetype, f.originalname, folder);
+    const isImage = f.mimetype.startsWith('image/');
+    const media = await prisma.mediaLibrary.create({
+      data: {
+        file_url: url,
+        s3_key: key,
+        file_type: isImage ? 'image' : f.mimetype.startsWith('video/') ? 'video' : 'document',
+        file_size: f.size,
+        file_name: f.originalname,
+        folder,
+        vendor_id: req.user!.id,
+        uploaded_by: req.user!.id,
+      },
+    });
+    sendSuccess(res, media, 'Uploaded', 201);
+  } catch (e) { next(e); }
+});
+
+router.delete('/media-library/:id', authenticate, isVendor, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const media = await prisma.mediaLibrary.findFirst({
+      where: { id: req.params.id, vendor_id: req.user!.id },
+    });
+    if (!media) throw new AppError('Media not found', 404);
+    if (media.s3_key) {
+      try { await deleteFile(media.s3_key); } catch { /* ignore */ }
+    }
+    await prisma.mediaLibrary.delete({ where: { id: media.id } });
+    sendSuccess(res, null, 'Deleted');
   } catch (e) { next(e); }
 });
 

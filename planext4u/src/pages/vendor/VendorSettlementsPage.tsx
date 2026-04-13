@@ -14,16 +14,18 @@ const statusStyle: Record<string, string> = {
 
 export default function VendorSettlementsPage() {
   const { vendorUser } = useAuth();
-  const vendorId = vendorUser?.vendor_id || "VND-001";
+  const vendorId = vendorUser?.vendor_id || vendorUser?.id || "";
 
   const { data: settlements, isLoading } = useQuery({
     queryKey: ["vendorSettlements", vendorId],
     queryFn: () => api.getVendorSettlements(vendorId),
+    enabled: !!vendorId,
   });
 
-  const totalEarned = settlements?.reduce((s, x) => s + x.net_amount, 0) || 0;
-  const pending = settlements?.filter((s) => s.status === 'pending').reduce((sum, s) => sum + s.net_amount, 0) || 0;
-  const settled = settlements?.filter((s) => s.status === 'settled').reduce((sum, s) => sum + s.net_amount, 0) || 0;
+  const list = Array.isArray(settlements) ? settlements : [];
+  const totalEarned = list.reduce((s, x) => s + Number(x.net_amount ?? 0), 0);
+  const pending = list.filter((s) => s.status === 'pending').reduce((sum, s) => sum + Number(s.net_amount ?? 0), 0);
+  const settled = list.filter((s) => s.status === 'settled').reduce((sum, s) => sum + Number(s.net_amount ?? 0), 0);
 
   return (
     <VendorLayout title="Settlements">
@@ -35,7 +37,7 @@ export default function VendorSettlementsPage() {
         </div>
         <div className="space-y-3">
           {isLoading ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />) :
-            settlements?.map((s) => (
+            list.map((s) => (
               <Card key={s.id} className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div>

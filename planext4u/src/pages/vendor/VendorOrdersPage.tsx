@@ -31,7 +31,7 @@ const STATUS_FLOW: Record<string, { next: string; label: string }> = {
 
 export default function VendorOrdersPage() {
   const { vendorUser } = useAuth();
-  const vendorId = vendorUser?.vendor_id || "VND-001";
+  const vendorId = vendorUser?.vendor_id || vendorUser?.id || "";
   const qc = useQueryClient();
   const [shippingModal, setShippingModal] = useState<Order | null>(null);
   const [courierName, setCourierName] = useState('');
@@ -41,6 +41,7 @@ export default function VendorOrdersPage() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ["vendorOrders", vendorId],
     queryFn: () => api.getVendorOrders(vendorId),
+    enabled: !!vendorId,
   });
 
   const updateStatus = useMutation({

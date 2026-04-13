@@ -48,6 +48,10 @@ const emptyForm = {
 };
 
 export function ProductModal({ product, open, onOpenChange, mode, onSave, onCreate, onDelete, isVendor, preselectedVendorId }: ProductModalProps) {
+  const vendorMediaProps =
+    isVendor && preselectedVendorId
+      ? { apiMode: 'vendor' as const, vendorId: preselectedVendorId }
+      : {};
   const isCreate = mode === "create";
   const qc = useQueryClient();
   const [editMode, setEditMode] = useState(mode === "edit" || isCreate);
@@ -66,8 +70,8 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
   const vendorRestricted = isVendor && isApproved;
 
   const { data: taxSlabs } = useQuery({
-    queryKey: ["taxSlabs"],
-    queryFn: () => http.get<any[]>('/admin/tax-slabs'),
+    queryKey: ["taxSlabs", "master"],
+    queryFn: () => http.get<any[]>('/master/tax-slabs', undefined, { auth: false }),
   });
 
   // Fetch all vendors with city/state info for filtering (admin sees all statuses)
@@ -108,20 +112,20 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
   }, [allVendors, vendorState, vendorDistrict, vendorSearch]);
 
   const { data: attributes } = useQuery({
-    queryKey: ["productAttributes"],
-    queryFn: () => http.get<any[]>('/admin/product-attributes'),
+    queryKey: ["productAttributes", "master"],
+    queryFn: () => http.get<any[]>('/master/product-attributes', undefined, { auth: false }),
   });
 
   const { data: attributeValues } = useQuery({
-    queryKey: ["productAttributeValues"],
-    queryFn: () => http.get<any[]>('/admin/product-attribute-values'),
+    queryKey: ["productAttributeValues", "master"],
+    queryFn: () => http.get<any[]>('/master/product-attribute-values', undefined, { auth: false }),
   });
 
   const { data: dbVariants } = useQuery({
     queryKey: ["productVariants", product?.id],
     queryFn: async () => {
       if (!product?.id) return [];
-      return http.get<any[]>(`/products/${product.id}/variants`);
+      return http.get<any[]>(`/products/${product.id}/variants`, undefined, { auth: true });
     },
     enabled: !!product?.id && open,
   });
@@ -136,6 +140,7 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
         ...emptyForm,
         vendor_id: preselectedVendorId || "",
         vendor_name: preselectedVendorId ? (allVendors?.find((v: any) => v.id === preselectedVendorId)?.business_name || "") : "",
+        ...(isVendor ? { status: "pending_approval" as Product["status"] } : {}),
       });
       setVariants([]);
       setEditMode(true);
@@ -181,7 +186,7 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
       setEditMode(mode === "edit");
       setActiveTab("general");
     }
-  }, [product, mode, preselectedVendorId]);
+  }, [product, mode, preselectedVendorId, isVendor]);
 
   const taxRate = taxSlabs?.find((t: any) => t.id === form.tax_slab_id)?.rate || 0;
   const taxAmount = form.tax_slab_id ? Math.round(form.price * taxRate / 100) : form.tax;
@@ -200,9 +205,12 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
       } else if (product) {
         await onSave?.(product.id, payload);
         if (form.product_type === "variable" && product.id) {
-          await http.delete(`/products/${product.id}/variants`);
+          const variantBase = isVendor
+            ? `/products/vendor/my/${product.id}/variants`
+            : `/products/${product.id}/variants`;
+          await http.delete(variantBase);
           for (const v of variants) {
-            await http.post(`/products/${product.id}/variants`, {
+            await http.post(variantBase, {
               product_id: product.id,
               sku: v.sku || null,
               price: v.price,
@@ -412,7 +420,7 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
                   <MediaLibraryPicker value="" onChange={(url) => {
                     const imgs = [...(form.images || []), url];
                     setForm({ ...form, images: imgs, image: imgs[0] || url });
-                  }} folder="product-images" label="+ Add" />
+                  }} folder="product-images" label="+ Add" {...vendorMediaProps} />
                 </div>
               ) : form.images?.length > 0 ? (
                 <div className="flex gap-2 overflow-x-auto">
@@ -590,11 +598,11 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs text-muted-foreground">Thumbnail</Label>
-                  <MediaLibraryPicker value={form.thumbnail_image} onChange={(url) => setForm({ ...form, thumbnail_image: url })} folder="product-images" label="Set Thumbnail" />
+                  <MediaLibraryPicker value={form.thumbnail_image} onChange={(url) => setForm({ ...form, thumbnail_image: url })} folder="product-images" label="Set Thumbnail" {...vendorMediaProps} />
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Banner</Label>
-                  <MediaLibraryPicker value={form.banner_image} onChange={(url) => setForm({ ...form, banner_image: url })} folder="product-images" label="Set Banner" />
+                  <MediaLibraryPicker value={form.banner_image} onChange={(url) => setForm({ ...form, banner_image: url })} folder="product-images" label="Set Banner" {...vendorMediaProps} />
                 </div>
               </div>
             )}

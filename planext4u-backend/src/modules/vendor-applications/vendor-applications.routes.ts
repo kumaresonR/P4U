@@ -55,6 +55,35 @@ function toDto(row: VendorApplication) {
   };
 }
 
+/** Admin Vendors list reads `vendors`, not `vendor_applications`. Create a pending vendor row so onboarding shows up there. */
+async function ensurePendingVendorForApplication(data: {
+  name: string;
+  business_name: string;
+  email: string;
+  mobile: string;
+  category_id: string | null;
+  city_id: string | null;
+  area_id: string | null;
+}) {
+  const existing = await prisma.vendor.findFirst({
+    where: { OR: [{ email: data.email }, { mobile: data.mobile }] },
+  });
+  if (existing) return;
+
+  await prisma.vendor.create({
+    data: {
+      name: data.name,
+      business_name: data.business_name,
+      email: data.email,
+      mobile: data.mobile,
+      status: 'pending',
+      category_id: data.category_id,
+      city_id: data.city_id,
+      area_id: data.area_id,
+    },
+  });
+}
+
 const router = Router();
 
 router.get('/mine', authenticate, isCustomer, async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -103,19 +132,34 @@ router.post('/', optionalAuth, validate(createBodySchema), async (req: AuthReque
 
     const uuid = (s: unknown) => typeof s === 'string' && /^[0-9a-f-]{36}$/i.test(s);
 
+    const category_id = uuid(body.category_id) ? String(body.category_id) : null;
+    const city_id = uuid(body.city_id) ? String(body.city_id) : null;
+    const area_id = uuid(body.area_id) ? String(body.area_id) : null;
+
     await prisma.vendorApplication.create({
       data: {
         name: String(body.name),
         business_name: String(body.business_name),
         email: String(body.email),
         mobile,
-        category_id: uuid(body.category_id) ? String(body.category_id) : null,
-        city_id: uuid(body.city_id) ? String(body.city_id) : null,
-        area_id: uuid(body.area_id) ? String(body.area_id) : null,
+        category_id,
+        city_id,
+        area_id,
         documents: documents as Prisma.InputJsonValue,
         status: typeof body.status === 'string' ? body.status : 'pending',
       },
     });
+
+    await ensurePendingVendorForApplication({
+      name: String(body.name),
+      business_name: String(body.business_name),
+      email: String(body.email),
+      mobile,
+      category_id,
+      city_id,
+      area_id,
+    });
+
     sendCreated(res, { success: true }, 'Application submitted');
   } catch (e) {
     next(e);

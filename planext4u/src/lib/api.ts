@@ -678,7 +678,7 @@ export const api = {
   },
 
   getVendorProducts: async (_vendorId: string) => {
-    return http.get<Product[]>('/vendor/products');
+    return http.get<Product[]>('/products/vendor/my');
   },
 
   getVendorOrders: async (_vendorId: string) => {

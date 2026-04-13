@@ -24,6 +24,18 @@ export const bulkSts = async (req: Request, res: Response, next: NextFunction) =
 export const myProducts = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const { data, total, page, limit } = await svc.getVendorProducts(req.user!.id, req); sendPaginated(res, data, total, page, limit); } catch (e) { next(e); } };
 
 // Variants
+export const listVariants = async (req: Request, res: Response, next: NextFunction) => {
+  try { sendSuccess(res, await svc.getVariantsByProductId(req.params.id)); } catch (e) { next(e); }
+};
 export const addVariant    = async (req: Request, res: Response, next: NextFunction) => { try { sendCreated(res, await svc.addVariant(req.params.id, req.body)); } catch (e) { next(e); } };
 export const updateVariant = async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await svc.updateVariant(req.params.variantId, req.body)); } catch (e) { next(e); } };
 export const removeVariant = async (req: Request, res: Response, next: NextFunction) => { try { await svc.deleteVariant(req.params.variantId); sendSuccess(res, null, 'Deleted'); } catch (e) { next(e); } };
+export const deleteAllVariantsAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  try { await svc.deleteVariantsByProductId(req.params.id); sendSuccess(res, null, 'Deleted'); } catch (e) { next(e); }
+};
+export const deleteAllVariantsVendor = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    await svc.deleteVariantsForVendorProduct(req.params.id, req.user!.id);
+    sendSuccess(res, null, 'Deleted');
+  } catch (e) { next(e); }
+};

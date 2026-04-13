@@ -17,7 +17,7 @@ const statusStyle: Record<string, string> = {
 
 export default function VendorPaymentHistoryPage() {
   const { vendorUser } = useAuth();
-  const vendorId = vendorUser?.vendor_id || "VND-001";
+  const vendorId = vendorUser?.vendor_id || vendorUser?.id || "";
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -27,6 +27,7 @@ export default function VendorPaymentHistoryPage() {
   const { data: settlements, isLoading } = useQuery({
     queryKey: ["vendorPayments", vendorId],
     queryFn: () => http.get<any[]>('/vendor/settlements'),
+    enabled: !!vendorId,
   });
 
   let filtered = settlements?.filter((s) => {

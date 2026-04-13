@@ -70,8 +70,16 @@ export default function VendorLoginPage() {
       const idToken = await getFirebaseIdToken();
       const data: any = await api.post('/auth/otp/verify?portal=vendor', { firebase_token: idToken }, { auth: false });
       tokenStore.set(data.access_token, data.refresh_token);
-      const user = data.vendor || data.user;
-      localStorage.setItem('p4u_user', JSON.stringify({ ...user, portal: 'vendor' }));
+      const v = data.vendor || data.user;
+      const normalized = {
+        id: v.id,
+        vendor_id: v.id,
+        name: v.name || "Vendor",
+        email: v.email || "",
+        business_name: v.business_name || "",
+        portal: "vendor" as const,
+      };
+      localStorage.setItem("p4u_user", JSON.stringify(normalized));
       toast.success("Welcome to Vendor Portal!");
       window.location.replace("/vendor");
     } catch (err: any) {

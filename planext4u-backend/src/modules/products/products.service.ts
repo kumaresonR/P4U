@@ -113,6 +113,18 @@ export const bulkUpdateProductStatus = (ids: string[], status: string) =>
   prisma.product.updateMany({ where: { id: { in: ids } }, data: { status: status as never } });
 
 // Variants
+export const getVariantsByProductId = (productId: string) =>
+  prisma.productVariant.findMany({ where: { product_id: productId }, orderBy: { sort_order: 'asc' } });
+
+export const deleteVariantsByProductId = (productId: string) =>
+  prisma.productVariant.deleteMany({ where: { product_id: productId } });
+
+export const deleteVariantsForVendorProduct = async (productId: string, vendorId: string) => {
+  const p = await prisma.product.findUnique({ where: { id: productId } });
+  if (!p || p.vendor_id !== vendorId) throw new AppError('Forbidden', 403);
+  return deleteVariantsByProductId(productId);
+};
+
 export const addVariant = (productId: string, data: object) =>
   prisma.productVariant.create({ data: { ...(data as object), product_id: productId } as Parameters<typeof prisma.productVariant.create>[0]['data'] });
 

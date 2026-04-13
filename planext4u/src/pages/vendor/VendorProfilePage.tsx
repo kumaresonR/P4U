@@ -16,7 +16,7 @@ import { TableIdCell } from "@/components/admin/TableIdCell";
 
 export default function VendorProfilePage() {
   const { vendorUser } = useAuth();
-  const vendorId = vendorUser?.vendor_id || "VND-001";
+  const vendorId = vendorUser?.vendor_id || vendorUser?.id || "";
   const queryClient = useQueryClient();
   const [txnId, setTxnId] = useState("");
   const bgInputRef = useRef<HTMLInputElement>(null);
@@ -25,6 +25,7 @@ export default function VendorProfilePage() {
   const { data: vendor, isLoading } = useQuery({
     queryKey: ["vendorProfile", vendorId],
     queryFn: () => api.getVendorProfile(vendorId),
+    enabled: !!vendorId,
   });
 
   const { data: vendorPlan } = useQuery({

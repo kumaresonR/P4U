@@ -4,21 +4,33 @@ import { z } from 'zod';
 const optionalUrl = z.union([z.string().url(), z.literal('')]).optional();
 const optionalId = z.string().optional();
 
+/** JSON often sends null for empty optional fields; coerce to undefined */
+const optionalString = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((v) => (v == null || v === '' ? undefined : v));
+
+/** DB uses "fixed" by default; UI may send that or null */
+const discountTypeIn = z.preprocess(
+  (val) => (val == null || val === '' ? undefined : val),
+  z.enum(['flat', 'percentage', 'fixed']).optional(),
+);
+
 export const createProductSchema = z.object({
   vendor_id: optionalId,
   category_id: optionalId,
   subcategory_id: optionalId,
   title: z.string().min(3).max(200),
-  slug: z.string().optional(),
+  slug: optionalString,
   short_description: z.string().max(500).optional(),
   long_description: z.string().optional(),
   price: z.number().positive(),
   compare_at_price: z.number().positive().optional(),
   tax: z.number().min(0).max(100).default(0),
   discount: z.number().min(0).max(100).default(0),
-  discount_type: z.enum(['flat', 'percentage']).optional(),
+  discount_type: discountTypeIn,
   max_points_redeemable: z.number().int().min(0).default(0),
-  sku: z.string().optional(),
+  sku: optionalString,
   stock: z.number().int().min(0).default(0),
   manage_stock: z.boolean().default(true),
   weight: z.number().positive().optional(),
@@ -38,7 +50,7 @@ export const updateProductSchema = createProductSchema.partial().extend({
 });
 
 export const createVariantSchema = z.object({
-  sku: z.string().optional(),
+  sku: optionalString,
   price: z.number().positive(),
   compare_at_price: z.number().positive().optional(),
   stock_quantity: z.number().int().min(0).default(0),

@@ -145,7 +145,7 @@ export function VendorLayout({ children, title }: VendorLayoutProps) {
                 </Button>
                 <button onClick={() => setMobileMenuOpen(true)} className="h-9 w-9 rounded-full bg-primary-foreground/15 flex items-center justify-center">
                   {vendorUser ? (
-                    <span className="text-sm font-bold text-primary-foreground">{vendorUser.name.charAt(0)}</span>
+                    <span className="text-sm font-bold text-primary-foreground">{(vendorUser.name || "V").charAt(0)}</span>
                   ) : (
                     <User className="h-4 w-4 text-primary-foreground" />
                   )}
