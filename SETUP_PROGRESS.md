@@ -109,9 +109,15 @@ The existing Play Store apps were registered under the **`p4u-console`** Firebas
 
 ---
 
-## 4. Google Cloud Storage Setup
+## 4. Object storage (Backblaze B2 — current)
 
-Created a dedicated GCS bucket for user uploads under the `p4u-console` Google Cloud project.
+Production uploads use **Backblaze B2** via the **S3-compatible API** (`@aws-sdk/client-s3` in `planext4u-backend/src/services/storage.ts`). Set `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET`, `B2_S3_ENDPOINT`, and `B2_PUBLIC_URL_BASE` (see `planext4u-backend/.env.example`). The bucket should allow public read for uploaded media URLs, or serve files through a CDN in front of B2.
+
+---
+
+### Historical — Google Cloud Storage (replaced by B2)
+
+Previously a dedicated GCS bucket was used under the `p4u-console` Google Cloud project.
 
 ### Bucket Details
 | Field | Value |
@@ -525,3 +531,202 @@ Earlier section 19 listed mock data removal and pending items. As of the work ab
 - Feed/stories use API-backed data; customer uploads and post/story flows go through **media** endpoints.
 - **`is_liked_by_me` / `is_bookmarked_by_me`** are attached in **`getFeed`** for authenticated users ([social.service.ts](planext4u-backend/src/modules/social/social.service.ts)).
 - Remaining audits (Reels/Explore/Profile) are optional cleanup, not blockers for core feed.
+
+---
+
+## 23. Backend deployment notes (full — bare VPS + PM2)
+
+Manual setup on Ubuntu (e.g. Contabo): SSH, Node 20, PostgreSQL, Redis, PM2. Alternative to Docker/`deploy.sh` in §1.
+
+### 1. Connect to server
+
+```bash
+ssh root@YOUR_SERVER_IP
+```
+
+### 2. Initial setup
+
+```bash
+passwd
+apt update
+apt upgrade -y
+reboot
+```
+
+SSH in again after the reboot.
+
+### 3. Firewall
+
+```bash
+apt install -y ufw
+ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw enable
+ufw status
+```
+
+Optional (only while testing the API **before** Nginx reverse proxy): `ufw allow 5000/tcp` — remove or deny later when Nginx fronts the app on 443.
+
+### 4. Basic tools
+
+```bash
+apt install -y git curl build-essential
+```
+
+### 5. Node.js (v20)
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs
+node -v
+npm -v
+```
+
+### 6. PM2
+
+```bash
+npm install -g pm2
+pm2 -v
+```
+
+### 7. PostgreSQL
+
+```bash
+apt install -y postgresql postgresql-contrib
+systemctl status postgresql
+```
+
+### 8. Create database user and database
+
+```bash
+sudo -u postgres psql
+```
+
+In the `psql` prompt:
+
+```sql
+CREATE USER planext WITH PASSWORD 'StrongPassword123!';
+CREATE DATABASE planext4u OWNER planext;
+\q
+```
+
+Use the same password in `DATABASE_URL` on the server. Prefer a unique strong password in production.
+
+### 9. Redis
+
+```bash
+apt install -y redis-server
+systemctl enable redis-server
+systemctl start redis-server
+redis-cli ping
+```
+
+Expect `PONG`.
+
+### 10. Clone project
+
+```bash
+cd /var/www
+git clone https://github.com/kumaresonR/P4U.git
+cd P4U/planext4u-backend
+```
+
+(Replace the clone URL if you use a fork or private remote.)
+
+### 11. Environment file
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Set at minimum:
+
+- `NODE_ENV=production`
+- `PORT=5000`
+- `DATABASE_URL=postgresql://planext:StrongPassword123!@localhost:5432/planext4u` (match §8 password)
+- `REDIS_URL=redis://127.0.0.1:6379`
+- `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` — **each must be at least 32 characters** (see `src/config/env.ts`)
+
+Fill SMTP, Razorpay, Firebase, `GCS_*`, `GOOGLE_MAPS_API_KEY`, `FRONTEND_URLS`, etc. as needed.
+
+Save in nano: **Ctrl+X**, then **Y**, then **Enter**.
+
+### 12. Install dependencies
+
+```bash
+npm ci
+```
+
+### 13. Prisma
+
+```bash
+npx prisma generate
+npx prisma migrate deploy
+```
+
+If the DB was created from an older dump and `migrate deploy` fails on the first migration, see **§21** (baseline `prisma migrate resolve`).
+
+### 14. Build issues (reference)
+
+- **`tsconfig.json`:** `"include": ["src/**/*"]` (do not compile `prisma/seed.ts` into `dist` unless intentional).
+- **`src/services/sms.ts`:** Twilio removed; stub should log or no-op, e.g. `sendSMS` implementation that does not require Twilio.
+
+### 15. Build
+
+```bash
+npm run build
+```
+
+### 16. Start with PM2
+
+```bash
+pm2 start dist/server.js --name backend
+```
+
+### 17. PM2 on boot
+
+```bash
+pm2 save
+pm2 startup
+```
+
+Run the **`sudo env PATH=...`** command PM2 prints so the process restarts after reboot.
+
+### 18. Check status
+
+```bash
+pm2 list
+```
+
+### 19. Logs
+
+```bash
+pm2 logs backend
+```
+
+### 20. Test API
+
+- With firewall port 5000 open: `http://YOUR_SERVER_IP:5000/api/v1/...` (use a real route your app exposes).
+- After Nginx + SSL: use the domain and paths configured in Nginx (no public `:5000`).
+
+### Important notes
+
+- Prefer changing the app on **GitHub**, then `git pull` on the server — avoid editing production code only on the VPS.
+- **Secrets:** keep real keys in `.env` on the server; do not paste private keys into public issues. If anything was ever committed or leaked, **rotate** SMTP, Razorpay, Firebase, JWT, DB password.
+- This repo’s root `.gitignore` may still track `planext4u-backend/.env` — treat that as sensitive in any remote.
+
+### Final checklist
+
+- [ ] Backend process running under PM2
+- [ ] `pm2 startup` + `pm2 save` applied
+- [ ] PostgreSQL + Redis reachable from the app
+- [ ] Production env vars set
+
+### Next steps
+
+- Install **Nginx** as reverse proxy (hide port 5000, add `client_max_body_size` for uploads).
+- Point a **domain** DNS **A** record at the VPS IP.
+- **HTTPS:** Certbot (`certbot --nginx`) or your provider’s SSL.
+

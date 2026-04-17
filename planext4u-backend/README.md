@@ -16,9 +16,9 @@ Complete backend API for User App, Vendor App, and Admin Dashboard.
 | Auth | JWT + bcrypt |
 | Payments | Razorpay |
 | Push Notifications | Firebase Admin (FCM) |
-| File Storage | AWS S3 |
+| File Storage | Backblaze B2 (S3-compatible API) |
 | Email | Nodemailer |
-| SMS / OTP | Twilio |
+| SMS / OTP | Stub / optional integration |
 | Real-time | Socket.io |
 | Validation | Zod |
 
@@ -44,7 +44,7 @@ src/
 │   ├── notifications/ # push & in-app notifications
 │   ├── admin/       # dashboard, reports, banners, CMS, support
 │   ├── master/      # cities, areas, categories, tax, plans
-│   └── media/       # file upload to S3
+│   └── media/       # file upload to B2
 ├── services/        # firebase, razorpay, storage, email, sms
 ├── socket/          # Socket.io real-time events
 ├── workers/         # BullMQ email & notification queue workers
