@@ -53,9 +53,9 @@ export default function VendorsPage() {
     setSelected(vendor); setModalMode(mode); setModalOpen(true);
   };
 
-  const handleSave = async (id: string, updates: Partial<Vendor>) => { await api.updateVendor(id, updates); toast.success("Vendor updated"); fetchData(); fetchStats(); };
-  const handleCreate = async (data: Partial<Vendor>) => { await api.createVendor(data); toast.success("Vendor created"); fetchData(); fetchStats(); };
-  const handleDelete = async (id: string) => { await api.deleteVendor(id); toast.success("Vendor deleted"); fetchData(); fetchStats(); };
+  const handleSave = async (id: string, updates: Partial<Vendor>) => { try { await api.updateVendor(id, updates); toast.success("Vendor updated"); fetchData(); fetchStats(); } catch (e: any) { toast.error(e.message || "Failed to update vendor"); throw e; } };
+  const handleCreate = async (data: Partial<Vendor>) => { try { await api.createVendor(data); toast.success("Vendor created"); fetchData(); fetchStats(); } catch (e: any) { toast.error(e.message || "Failed to create vendor"); throw e; } };
+  const handleDelete = async (id: string) => { try { await api.deleteVendor(id); toast.success("Vendor deleted"); fetchData(); fetchStats(); } catch (e: any) { toast.error(e.message || "Failed to delete vendor"); throw e; } };
 
   const handleBulkDelete = async (ids: string[]) => {
     await api.bulkDeleteVendors(ids);

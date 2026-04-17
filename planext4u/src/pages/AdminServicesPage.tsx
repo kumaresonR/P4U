@@ -23,7 +23,9 @@ export default function AdminServicesPage() {
   const [confirmTarget, setConfirmTarget] = useState<Service | null>(null);
 
   const fetchData = useCallback(() => {
-    api.getServices({ page, per_page: 10, search: search || undefined, date_from: dateFrom, date_to: dateTo }).then(setData);
+    api.getServices({ page, per_page: 10, search: search || undefined, date_from: dateFrom, date_to: dateTo })
+      .then(setData)
+      .catch((err) => { toast.error(err.message || "Failed to load services"); setData({ data: [], total: 0, page: 1, per_page: 10, total_pages: 0 }); });
   }, [page, search, dateFrom, dateTo]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -32,9 +34,9 @@ export default function AdminServicesPage() {
     setSelected(service); setModalMode(mode); setModalOpen(true);
   };
 
-  const handleSave = async (id: string, updates: Partial<Service>) => { await api.updateService(id, updates); toast.success("Service updated"); fetchData(); };
-  const handleCreate = async (data: Partial<Service>) => { await api.createService(data); toast.success("Service created"); fetchData(); };
-  const handleDelete = async (id: string) => { await api.deleteService(id); toast.success("Service deleted"); fetchData(); };
+  const handleSave = async (id: string, updates: Partial<Service>) => { try { await api.updateService(id, updates); toast.success("Service updated"); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to update service"); throw e; } };
+  const handleCreate = async (data: Partial<Service>) => { try { await api.createService(data); toast.success("Service created"); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to create service"); throw e; } };
+  const handleDelete = async (id: string) => { try { await api.deleteService(id); toast.success("Service deleted"); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to delete service"); throw e; } };
 
   const handleBulkDelete = async (ids: string[]) => {
     await api.bulkDeleteServices(ids);

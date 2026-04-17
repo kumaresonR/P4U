@@ -31,7 +31,7 @@ export default function CategoriesPage() {
   const [createAsSubcategory, setCreateAsSubcategory] = useState(false);
 
   const fetchData = useCallback(() => {
-    api.getCategories().then(setAllData);
+    api.getCategories().then(setAllData).catch((err) => { toast.error(err.message || "Failed to load categories"); });
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -70,10 +70,10 @@ export default function CategoriesPage() {
     setSelected(cat); setModalMode(mode); setModalOpen(true);
   };
 
-  const handleSave = async (id: string, updates: Partial<Category>) => { await api.updateCategory(id, updates); toast.success("Category updated"); fetchData(); };
-  const handleCreate = async (data: Partial<Category>) => { await api.createCategory(data); toast.success("Category created"); fetchData(); };
-  const handleDelete = async (id: string) => { await api.deleteCategory(id); toast.success("Category deleted"); fetchData(); };
-  const handleBulkDelete = async (ids: string[]) => { await api.bulkDeleteCategories(ids); toast.success(`${ids.length} categories deleted`); fetchData(); };
+  const handleSave = async (id: string, updates: Partial<Category>) => { try { await api.updateCategory(id, updates); toast.success("Category updated"); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to update category"); throw e; } };
+  const handleCreate = async (data: Partial<Category>) => { try { await api.createCategory(data); toast.success("Category created"); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to create category"); throw e; } };
+  const handleDelete = async (id: string) => { try { await api.deleteCategory(id); toast.success("Category deleted"); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to delete category"); throw e; } };
+  const handleBulkDelete = async (ids: string[]) => { try { await api.bulkDeleteCategories(ids); toast.success(`${ids.length} categories deleted`); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to delete"); } };
 
   const handleExport = () => {
     exportToCSV(allData, [
