@@ -16,6 +16,7 @@ export const updateCustomerSchema = z.object({
   about: z.string().max(500).optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  status: z.enum(['active', 'inactive', 'suspended']).optional(),
 }).passthrough();
 
 export const addAddressSchema = z.object({

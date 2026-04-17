@@ -128,63 +128,82 @@ function PostCard({ post }: { post: any }) {
 
   const toggleLike = useMutation({
     mutationFn: async () => {
-      if (isMock) {
-        const was = localLiked ?? isLiked;
-        setLocalLiked(!was);
-        setLocalLikeDelta((d) => d + (was ? -1 : 1));
-        return;
-      }
+      if (isMock) return;
       if (!userId) { toast.error("Please login to like"); return; }
-      if (isLiked) {
+      // Read current state at call time so the API action matches what the user sees.
+      const currentlyLiked = (localLiked ?? isLiked);
+      if (currentlyLiked) {
         await http.delete(`/social/posts/${postId}/like`);
       } else {
         await http.post(`/social/posts/${postId}/like`, {});
       }
     },
-    onSuccess: () => {
-      if (!isMock) {
-        qc.invalidateQueries({ queryKey: ['social-like', postId] });
-        qc.invalidateQueries({ queryKey: ['social-like-count', postId] });
+    onMutate: () => {
+      const was = localLiked ?? isLiked;
+      setLocalLiked(!was);
+      setLocalLikeDelta((d) => d + (was ? -1 : 1));
+      return { was };
+    },
+    onError: (_err, _vars, ctx) => {
+      // Rollback optimistic UI
+      if (ctx) {
+        setLocalLiked(ctx.was);
+        setLocalLikeDelta((d) => d + (ctx.was ? 1 : -1));
       }
+      if (!isMock) toast.error("Could not update like");
+    },
+    onSuccess: () => {
+      if (!isMock) qc.invalidateQueries({ queryKey: ['social-feed'] });
     },
   });
 
   const toggleBookmark = useMutation({
     mutationFn: async () => {
-      if (isMock) { setLocalSaved(v => !v); toast.success(localSaved ? "Removed from saved" : "Post saved"); return; }
+      if (isMock) return;
       if (!userId) { toast.error("Please login"); return; }
-      if (isSaved) {
+      const currentlySaved = (localSaved ?? isSaved);
+      if (currentlySaved) {
         await http.delete(`/social/posts/${postId}/bookmark`);
-        toast.success("Removed from saved");
       } else {
         await http.post(`/social/posts/${postId}/bookmark`, {});
-        toast.success("Post saved");
       }
     },
-    onSuccess: () => { if (!isMock) qc.invalidateQueries({ queryKey: ['social-bookmark', postId] }); },
+    onMutate: () => {
+      const was = localSaved ?? isSaved;
+      setLocalSaved(!was);
+      return { was };
+    },
+    onSuccess: (_d, _v, ctx) => {
+      toast.success(ctx?.was ? "Removed from saved" : "Post saved");
+      if (!isMock) qc.invalidateQueries({ queryKey: ['social-feed'] });
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) setLocalSaved(ctx.was);
+      toast.error("Could not update bookmark");
+    },
   });
 
   const submitComment = useMutation({
     mutationFn: async () => {
-      if (!commentText.trim()) return;
+      const text = commentText.trim();
+      if (!text) return;
       if (isMock) {
-        setMockComments(prev => [{ id: `mc${Date.now()}`, user_id: userId || 'you', content: commentText.trim(), created_at: new Date().toISOString() }, ...prev]);
-        toast.success("Comment posted");
-        setCommentText("");
+        setMockComments(prev => [{ id: `mc${Date.now()}`, user_id: userId || 'you', content: text, created_at: new Date().toISOString() }, ...prev]);
         return;
       }
       if (!userId) { toast.error("Please login"); return; }
-      await http.post(`/social/posts/${postId}/comments`, { content: commentText.trim() });
-      setCommentText("");
-      toast.success("Comment posted");
+      await http.post(`/social/posts/${postId}/comments`, { content: text });
     },
     onSuccess: () => {
+      setCommentText("");
+      toast.success("Comment posted");
       if (!isMock) {
-        qc.invalidateQueries({ queryKey: ['social-comment-count', postId] });
         qc.invalidateQueries({ queryKey: ['social-recent-comments', postId] });
         qc.invalidateQueries({ queryKey: ['social-all-comments', postId] });
+        qc.invalidateQueries({ queryKey: ['social-feed'] });
       }
     },
+    onError: () => toast.error("Could not post comment"),
   });
 
   const username = isMock ? post.username : (postProfile?.display_name || postProfile?.username || 'user');

@@ -122,19 +122,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    try { await api.post('/auth/logout', {}); } catch { /* ignore */ }
+    try { await api.post('/auth/logout', { refresh_token: tokenStore.getRefresh() }); } catch { /* ignore */ }
     _clearAll();
   }, [_clearAll]);
 
   const customerLogout = useCallback(async () => {
     const id = customerUser?.id;
     if (id) clearPushToken(id).catch(() => {});
-    try { await api.post('/auth/logout', {}); } catch { /* ignore */ }
+    try { await api.post('/auth/logout', { refresh_token: tokenStore.getRefresh() }); } catch { /* ignore */ }
     _clearAll();
   }, [customerUser, _clearAll]);
 
   const vendorLogout = useCallback(async () => {
-    try { await api.post('/auth/logout', {}); } catch { /* ignore */ }
+    try { await api.post('/auth/logout', { refresh_token: tokenStore.getRefresh() }); } catch { /* ignore */ }
     _clearAll();
   }, [_clearAll]);
 

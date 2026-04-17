@@ -199,7 +199,8 @@ export const resendVerificationEmail = async (customerId: string) => {
 
 export const loginCustomer = async (email: string, password: string) => {
   const customer = await prisma.customer.findUnique({ where: { email } });
-  if (!customer || !customer.password_hash) throw new AppError('Invalid credentials', 401);
+  if (!customer) throw new AppError('No account found for this email. Please register first.', 404);
+  if (!customer.password_hash) throw new AppError('This account uses phone login. Use OTP sign-in instead.', 400);
   if (customer.status !== 'active') throw new AppError('Account suspended', 403);
 
   const valid = await comparePassword(password, customer.password_hash);
@@ -215,7 +216,8 @@ export const loginCustomer = async (email: string, password: string) => {
 export const loginVendor = async (email: string, password: string, type: 'vendor' | 'service_vendor') => {
   if (type === 'vendor') {
     const vendor = await prisma.vendor.findUnique({ where: { email } });
-    if (!vendor || !vendor.password_hash) throw new AppError('Invalid credentials', 401);
+    if (!vendor) throw new AppError('No vendor account found for this email. Please register first.', 404);
+    if (!vendor.password_hash) throw new AppError('This account uses phone login. Use OTP sign-in instead.', 400);
     if (vendor.status === 'rejected') throw new AppError('Account rejected', 403);
     const valid = await comparePassword(password, vendor.password_hash);
     if (!valid) throw new AppError('Invalid credentials', 401);
@@ -224,7 +226,8 @@ export const loginVendor = async (email: string, password: string, type: 'vendor
     return { vendor: safeVendor, ...tokens };
   } else {
     const vendor = await prisma.serviceVendor.findUnique({ where: { email } });
-    if (!vendor || !vendor.password_hash) throw new AppError('Invalid credentials', 401);
+    if (!vendor) throw new AppError('No service-vendor account found for this email. Please register first.', 404);
+    if (!vendor.password_hash) throw new AppError('This account uses phone login. Use OTP sign-in instead.', 400);
     if (vendor.status === 'rejected') throw new AppError('Account rejected', 403);
     const valid = await comparePassword(password, vendor.password_hash);
     if (!valid) throw new AppError('Invalid credentials', 401);
@@ -238,7 +241,7 @@ export const loginVendor = async (email: string, password: string, type: 'vendor
 
 export const loginAdmin = async (email: string, password: string) => {
   const admin = await prisma.admin.findUnique({ where: { email } });
-  if (!admin) throw new AppError('Invalid credentials', 401);
+  if (!admin) throw new AppError('No admin account found for this email.', 404);
   if (admin.status !== 'active') throw new AppError('Account disabled', 403);
 
   const valid = await comparePassword(password, admin.password_hash);
@@ -256,12 +259,7 @@ export const refreshTokens = async (refreshToken: string) => {
 
   try {
     const payload = verifyRefreshToken(refreshToken);
-    const newTokens = generateTokenPair({ id: payload.id, role: payload.role, email: payload.email, mobile: payload.mobile });
-
-    // Rotate: blacklist old refresh token immediately (30-day TTL)
-    await redis.setex(`blacklist:${refreshToken}`, 60 * 60 * 24 * 30, '1');
-
-    return newTokens;
+    return generateTokenPair({ id: payload.id, role: payload.role, email: payload.email, mobile: payload.mobile });
   } catch {
     throw new AppError('Invalid refresh token', 401);
   }

@@ -43,7 +43,22 @@ async function refreshAccessToken(): Promise<string | null> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
-    if (!res.ok) throw new Error('Refresh failed');
+
+    // Only force-logout when the refresh token itself is rejected (401/403).
+    // Network blips, 5xx, or parse errors must NOT clear the session.
+    if (res.status === 401 || res.status === 403) {
+      tokenStore.clear();
+      window.dispatchEvent(new Event('p4u:logout'));
+      refreshQueue.forEach((cb) => cb(''));
+      refreshQueue = [];
+      return null;
+    }
+    if (!res.ok) {
+      refreshQueue.forEach((cb) => cb(''));
+      refreshQueue = [];
+      return null;
+    }
+
     const data = await res.json();
     const { access_token, refresh_token } = data.data;
     tokenStore.set(access_token, refresh_token);
@@ -51,8 +66,8 @@ async function refreshAccessToken(): Promise<string | null> {
     refreshQueue = [];
     return access_token;
   } catch {
-    tokenStore.clear();
-    window.dispatchEvent(new Event('p4u:logout'));
+    refreshQueue.forEach((cb) => cb(''));
+    refreshQueue = [];
     return null;
   } finally {
     isRefreshing = false;
