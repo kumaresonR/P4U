@@ -33,7 +33,9 @@ export default function VendorsPage() {
   const tabStatusFilter = activeTab === "pending" ? "pending" : statusFilter || undefined;
 
   const fetchData = useCallback(() => {
-    api.getVendors({ page, per_page: 10, search: search || undefined, status: tabStatusFilter, date_from: dateFrom, date_to: dateTo, payment_status: paymentFilter || undefined }).then(setData);
+    api.getVendors({ page, per_page: 10, search: search || undefined, status: tabStatusFilter, date_from: dateFrom, date_to: dateTo, payment_status: paymentFilter || undefined })
+      .then(setData)
+      .catch((err) => { toast.error(err.message || "Failed to load vendors"); setData({ data: [], total: 0, page: 1, per_page: 10, total_pages: 0 }); });
   }, [page, search, tabStatusFilter, paymentFilter, dateFrom, dateTo]);
 
   const fetchStats = useCallback(async () => {

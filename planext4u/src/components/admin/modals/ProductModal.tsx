@@ -135,6 +135,7 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
   }, [dbVariants]);
 
   useEffect(() => {
+    if (!open) return;
     if (isCreate) {
       setForm({
         ...emptyForm,
@@ -186,7 +187,7 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
       setEditMode(mode === "edit");
       setActiveTab("general");
     }
-  }, [product, mode, preselectedVendorId, isVendor]);
+  }, [open, product, mode, preselectedVendorId, isVendor]);
 
   const taxRate = taxSlabs?.find((t: any) => t.id === form.tax_slab_id)?.rate || 0;
   const taxAmount = form.tax_slab_id ? Math.round(form.price * taxRate / 100) : form.tax;
@@ -615,7 +616,7 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs text-muted-foreground">MRP (₹)</Label>
-                  {editMode ? <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="mt-1" /> : <p className="text-sm font-bold mt-1">₹{product?.price.toLocaleString()}</p>}
+                  {editMode ? <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="mt-1" /> : <p className="text-sm font-bold mt-1">₹{(product?.price ?? 0).toLocaleString()}</p>}
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Tax Slab</Label>

@@ -24,7 +24,7 @@ router.get('/service-vendors/me/dashboard', authenticate, isServiceVendor, ctrl.
 router.put('/service-vendors/me/bank',  authenticate, isServiceVendor, validate(updateBankSchema), ctrl.updateSvcBank);
 
 // Admin — product vendors
-router.post('/',                 authenticate, isAdmin, ctrl.register);
+router.post('/',                 authenticate, isAdmin, validate(registerVendorSchema), ctrl.register);
 router.get('/',                  authenticate, isAdmin, ctrl.list);
 router.get('/:id',               authenticate, isAdmin, ctrl.get);
 router.put('/:id',               authenticate, isAdmin, ctrl.update);

@@ -65,6 +65,7 @@ export function VendorModal({ vendor, open, onOpenChange, mode, onSave, onCreate
   });
 
   useEffect(() => {
+    if (!open) return;
     if (isCreate) {
       setForm(emptyForm);
       setEditMode(true);
@@ -84,7 +85,7 @@ export function VendorModal({ vendor, open, onOpenChange, mode, onSave, onCreate
       });
       setEditMode(mode === "edit");
     }
-  }, [vendor, mode]);
+  }, [open, vendor, mode]);
 
   const currentStep = vendor ? statusFlow.indexOf(vendor.status) : -1;
 

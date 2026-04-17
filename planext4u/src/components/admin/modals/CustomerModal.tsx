@@ -63,6 +63,7 @@ export function CustomerModal({ customer, open, onOpenChange, mode, onSave, onCr
   const [profileScore, setProfileScore] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!open) return;
     if (isCreate) {
       setForm(emptyForm);
       setEditMode(true);
@@ -71,7 +72,7 @@ export function CustomerModal({ customer, open, onOpenChange, mode, onSave, onCr
       setForm({ name: customer.name, email: customer.email, mobile: customer.mobile, status: customer.status, occupation: customer.occupation || "", city_id: customer.city_id, area_id: customer.area_id });
       setEditMode(mode === "edit");
     }
-  }, [customer, mode]);
+  }, [open, customer, mode]);
 
   // Fetch KYC docs when tab changes
   useEffect(() => {

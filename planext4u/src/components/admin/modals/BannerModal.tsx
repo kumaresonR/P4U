@@ -32,6 +32,7 @@ export function BannerModal({ banner, open, onOpenChange, mode, onSave, onCreate
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
+    if (!open) return;
     if (isCreate) { setForm(emptyForm); setEditMode(true); }
     else if (banner) {
       setForm({
@@ -43,7 +44,7 @@ export function BannerModal({ banner, open, onOpenChange, mode, onSave, onCreate
       });
       setEditMode(mode === "edit");
     }
-  }, [banner, mode]);
+  }, [open, banner, mode]);
 
   const handleSave = async () => {
     if (!form.title) return;

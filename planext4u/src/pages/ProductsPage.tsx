@@ -29,7 +29,9 @@ export default function ProductsPage() {
   const statusFilter = activeTab === "pending" ? "pending_approval" : undefined;
 
   const fetchData = useCallback(() => {
-    api.getProducts({ page, per_page: 10, search: search || undefined, date_from: dateFrom, date_to: dateTo, status: statusFilter }).then(setData);
+    api.getProducts({ page, per_page: 10, search: search || undefined, date_from: dateFrom, date_to: dateTo, status: statusFilter })
+      .then(setData)
+      .catch((err) => { toast.error(err.message || "Failed to load products"); setData({ data: [], total: 0, page: 1, per_page: 10, total_pages: 0 }); });
   }, [page, search, dateFrom, dateTo, statusFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -39,9 +41,9 @@ export default function ProductsPage() {
     setSelected(product); setModalMode(mode); setModalOpen(true);
   };
 
-  const handleSave = async (id: string, updates: Partial<Product>) => { await api.updateProduct(id, updates); toast.success("Product updated"); fetchData(); };
-  const handleCreate = async (data: Partial<Product>) => { await api.createProduct(data); toast.success("Product created"); fetchData(); };
-  const handleDelete = async (id: string) => { await api.deleteProduct(id); toast.success("Product deleted"); fetchData(); };
+  const handleSave = async (id: string, updates: Partial<Product>) => { try { await api.updateProduct(id, updates); toast.success("Product updated"); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to update product"); throw e; } };
+  const handleCreate = async (data: Partial<Product>) => { try { await api.createProduct(data); toast.success("Product created"); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to create product"); throw e; } };
+  const handleDelete = async (id: string) => { try { await api.deleteProduct(id); toast.success("Product deleted"); fetchData(); } catch (e: any) { toast.error(e.message || "Failed to delete product"); throw e; } };
 
   const handleBulkDelete = async (ids: string[]) => {
     await api.bulkDeleteProducts(ids);

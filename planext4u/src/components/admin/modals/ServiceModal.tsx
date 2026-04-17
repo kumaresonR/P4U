@@ -57,6 +57,7 @@ export function ServiceModal({ service, open, onOpenChange, mode, onSave, onCrea
   });
 
   useEffect(() => {
+    if (!open) return;
     if (isCreate) { setForm(emptyForm); setEditMode(true); }
     else if (service) {
       setForm({
@@ -71,7 +72,7 @@ export function ServiceModal({ service, open, onOpenChange, mode, onSave, onCrea
       });
       setEditMode(mode === "edit");
     }
-  }, [service, mode]);
+  }, [open, service, mode]);
 
   const handleSave = async () => {
     if (!form.title) return;

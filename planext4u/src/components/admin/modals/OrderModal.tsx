@@ -25,11 +25,12 @@ export function OrderModal({ order, open, onOpenChange, mode, onSave }: OrderMod
   const [newStatus, setNewStatus] = useState<Order["status"]>("placed");
 
   useEffect(() => {
+    if (!open) return;
     if (order) {
       setNewStatus(order.status);
       setEditMode(mode === "edit");
     }
-  }, [order, mode]);
+  }, [open, order, mode]);
 
   if (!order) return null;
 

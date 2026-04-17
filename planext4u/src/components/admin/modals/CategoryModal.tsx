@@ -39,9 +39,9 @@ export function CategoryModal({ category, open, onOpenChange, mode, onSave, onCr
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
+    if (!open) return;
     if (isCreate) {
       const initialForm = { ...emptyForm };
-      // If creating as subcategory and category has parent_id preset
       if (defaultAsSubcategory && category?.parent_id) {
         initialForm.parent_id = category.parent_id;
       }
@@ -62,7 +62,7 @@ export function CategoryModal({ category, open, onOpenChange, mode, onSave, onCr
       });
       setEditMode(mode === "edit");
     }
-  }, [category, mode, defaultAsSubcategory]);
+  }, [open, category, mode, defaultAsSubcategory]);
 
   const handleSave = async () => {
     if (!form.name) return;

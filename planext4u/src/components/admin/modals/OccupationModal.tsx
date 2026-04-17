@@ -27,9 +27,10 @@ export function OccupationModal({ occupation, open, onOpenChange, mode, onSave, 
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
+    if (!open) return;
     if (isCreate) { setForm(emptyForm); setEditMode(true); }
     else if (occupation) { setForm({ name: occupation.name, status: occupation.status }); setEditMode(mode === "edit"); }
-  }, [occupation, mode]);
+  }, [open, occupation, mode]);
 
   const handleSave = async () => {
     if (!form.name.trim()) return;

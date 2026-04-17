@@ -39,6 +39,10 @@ export const errorHandler = (
   }
 
   // Prisma errors
+  if (err.constructor.name === 'PrismaClientValidationError') {
+    return res.status(400).json({ success: false, error: 'Invalid request data' });
+  }
+
   if (err.constructor.name === 'PrismaClientKnownRequestError') {
     const prismaErr = err as unknown as { code: string; meta?: { target?: string[] } };
     if (prismaErr.code === 'P2002') {
