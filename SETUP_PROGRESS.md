@@ -649,7 +649,7 @@ Set at minimum:
 - `REDIS_URL=redis://127.0.0.1:6379`
 - `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` — **each must be at least 32 characters** (see `src/config/env.ts`)
 
-Fill SMTP, Razorpay, Firebase, `GCS_*`, `GOOGLE_MAPS_API_KEY`, `FRONTEND_URLS`, etc. as needed.
+Fill SMTP, Razorpay, Firebase, **`B2_*`** (object storage), `GOOGLE_MAPS_API_KEY`, **`FRONTEND_URLS`** (production `https://` origins), etc. as needed.
 
 Save in nano: **Ctrl+X**, then **Y**, then **Enter**.
 
@@ -726,7 +726,126 @@ pm2 logs backend
 
 ### Next steps
 
-- Install **Nginx** as reverse proxy (hide port 5000, add `client_max_body_size` for uploads).
-- Point a **domain** DNS **A** record at the VPS IP.
-- **HTTPS:** Certbot (`certbot --nginx`) or your provider’s SSL.
+See **§24** — same-VPS **frontend build**, **Nginx SPA + API**, **DNS (Cloudflare)**, **Let’s Encrypt / Certbot**, and **`FRONTEND_URLS`**.
+
+---
+
+## 24. Frontend + domain + HTTPS (same VPS as backend)
+
+End-to-end flow used for **`planext4u.com`**: DNS → Nginx `server_name` → Certbot → Vite production build → static `dist/` → Nginx serves SPA and proxies **`/api/`** to PM2.
+
+### A. DNS (Cloudflare or registrar)
+
+1. **A** record **`@`** (`planext4u.com`) → **VPS IPv4**.  
+2. **A** record **`www`** → **same IPv4** (remove old **`www` → CloudFront** CNAME if present — CNAME and A cannot both exist for `www`).  
+3. Do **not** paste the shell prompt into commands (e.g. type `cd /path` only, not `root@host#cd /path`).
+
+### B. Nginx — name the site before Certbot can install
+
+1. Install Nginx: `apt install -y nginx`  
+2. Edit **`/etc/nginx/sites-available/default`** (or your site file): set  
+   `server_name planext4u.com www.planext4u.com;`  
+   (replace **`server_name _;`** catch-all if that was the only block.)  
+3. **`nginx -t && systemctl reload nginx`**
+
+### C. Let’s Encrypt (Certbot)
+
+1. Install: `apt install -y certbot python3-certbot-nginx`  
+2. Request cert (interactive):  
+   `certbot --nginx -d planext4u.com -d www.planext4u.com`  
+3. Prompts: **email** (any inbox you read), **(Y)es** to terms, **(Y)/(N)** for EFF email (optional).  
+4. If Certbot says **certificate saved** but **“Could not install certificate”** / **no matching server block**: fix **`server_name`** as in **§B**, then:  
+   `certbot install --cert-name planext4u.com`  
+5. Confirm **`ss -tlnp | grep ':443'`** shows Nginx on **443**.  
+6. **Cloudflare → SSL/TLS:** use **Full (strict)** (or **Full**) so origin HTTPS matches Certbot.
+
+### D. `git pull` when `planext4u-backend/.env` blocks merge
+
+```bash
+cp /var/www/P4U/planext4u-backend/.env /root/planext4u-backend.env.backup
+cd /var/www/P4U
+git stash push -m "server env" -- planext4u-backend/.env
+git pull
+cp /root/planext4u-backend.env.backup /var/www/P4U/planext4u-backend/.env
+```
+
+Optional — stop future pulls from overwriting server `.env`:
+
+```bash
+cd /var/www/P4U
+git update-index --skip-worktree planext4u-backend/.env
+```
+
+### E. Backend after HTTPS
+
+In **`planext4u-backend/.env`** on the server:
+
+```env
+FRONTEND_URLS=https://planext4u.com,https://www.planext4u.com
+```
+
+Then:
+
+```bash
+cd /var/www/P4U/planext4u-backend
+pm2 restart backend --update-env
+pm2 save
+```
+
+**`DATABASE_URL`:** if the password contains **`@`**, URL-encode it as **`%40`** inside the password segment.
+
+### F. Frontend env (repo — production build)
+
+- **`planext4u/.env.production`** — `VITE_API_URL=https://planext4u.com/api/v1` (used by **`vite build`** automatically).  
+- **`planext4u/.env`** — keeps **`http://localhost:5000/api/v1`** for **`npm run dev`**.  
+- **`planext4u/.npmrc`** — `legacy-peer-deps=true` so **`npm ci`** succeeds (Capacitor Firebase vs Firebase v10 peer mismatch on the server).
+
+### G. Build frontend on the VPS and deploy static files
+
+```bash
+cd /var/www/P4U
+git pull
+cd /var/www/P4U/planext4u
+npm ci
+npm run build
+sudo mkdir -p /var/www/planext4u-frontend
+sudo rm -rf /var/www/planext4u-frontend/*
+sudo cp -r dist/* /var/www/planext4u-frontend/
+sudo chown -R www-data:www-data /var/www/planext4u-frontend
+```
+
+If **`npm ci`** fails with **`ERESOLVE`** before **`.npmrc`** exists on the server, use once: **`npm ci --legacy-peer-deps`**, then **`git pull`** after the repo includes **`.npmrc`**.
+
+### H. Nginx — SPA + API (replace “all traffic to Node”)
+
+Reference file in repo: **[deploy/nginx-planext4u-spa.conf.example](deploy/nginx-planext4u-spa.conf.example)** — **`/`** = static **`root /var/www/planext4u-frontend`** + **`try_files`** for the SPA; **`/api/`** and **`/socket.io/`** → **`http://127.0.0.1:5000`**; **`client_max_body_size 50m`**; Let’s Encrypt paths under **`/etc/letsencrypt/live/planext4u.com/`**.
+
+On the server:
+
+```bash
+sudo cp /etc/nginx/sites-available/default /root/nginx-default.backup-$(date +%F)
+sudo cp /var/www/P4U/deploy/nginx-planext4u-spa.conf.example /etc/nginx/sites-available/planext4u
+sudo ln -sf /etc/nginx/sites-available/planext4u /etc/nginx/sites-enabled/planext4u
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Restore an old Nginx layout from **`/root/nginx-default.backup-*`** if needed.
+
+### I. Smoke tests
+
+- **`https://planext4u.com`** — SPA loads (not only JSON “Route not found” on `/`).  
+- **`https://planext4u.com/api/v1/master/cities`** — JSON from API.  
+- **`pm2 list`** — **`backend`** **online**.
+
+### J. Firebase (web)
+
+Authentication → **Authorized domains** → add **`planext4u.com`** and **`www.planext4u.com`** if the web app uses Firebase Auth.
+
+### K. Operational notes
+
+- **`pm2 restart backend --update-env`** after changing **`.env`** so PM2 picks up new variables.  
+- **521** from Cloudflare: origin not answering on the port/mode Cloudflare uses — often **no :443** while SSL mode is **Full**; use **Flexible** until Certbot is done, or complete **§C**.  
+- **Root `/` JSON 404** before the SPA deploy is normal (API has no `/` route; routes live under **`/api/v1`**).  
+- **B2 / media:** if public URLs return **403**, check bucket rules, CORS, and whether the app expects **public read** vs **signed URLs** (`B2_*` in **`planext4u-backend/.env`**).
 

@@ -98,32 +98,6 @@ export default function CustomerLoginPage() {
     } finally { setLoading(false); }
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-        extraParams: { prompt: "select_account" },
-      });
-
-      if (result.error) {
-        throw result.error;
-      }
-
-      if (result.redirected) {
-        // Browser will redirect to Google — nothing more to do
-        return;
-      }
-
-      // Session already set — user is authenticated
-      toast.success("Welcome to Planext4u!");
-      // useEffect watching customerUser will handle redirect
-    } catch (err: any) {
-      toast.error(err.message || "Google sign-in failed");
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div
@@ -209,8 +183,6 @@ export default function CustomerLoginPage() {
             </form>
           )}
         </div>
-
-        {/* Google sign-in hidden until OAuth broker is configured for custom domain */}
 
         <div className="mt-4 text-center max-w-sm mx-auto space-y-2">
           <Link to="/app/forgot-password" className="text-sm text-muted-foreground hover:text-primary hover:underline block">Forgot Password?</Link>

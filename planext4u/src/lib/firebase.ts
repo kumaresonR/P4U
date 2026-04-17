@@ -17,12 +17,33 @@ export const firebaseAuth = getAuth(app);
 // Use custom domain for auth to avoid third-party cookie issues
 firebaseAuth.useDeviceLanguage();
 
-const ALLOWED_HOSTNAMES = ["localhost", "127.0.0.1", "planext4u.lovable.app", "www.planext4u.net", "planext4u.net"];
+const STATIC_ALLOWED_HOSTNAMES = new Set([
+  "localhost",
+  "127.0.0.1",
+  "planext4u.com",
+  "www.planext4u.com",
+  "www.planext4u.net",
+  "planext4u.net",
+]);
+
+/** Canonical web origin for Firebase Phone Auth redirects (matches production API host). */
+function getProductionOrigin(): string {
+  const api = import.meta.env.VITE_API_URL as string | undefined;
+  if (api && /^https?:\/\//i.test(api)) {
+    try {
+      return new URL(api).origin;
+    } catch {
+      // fall through
+    }
+  }
+  return "https://planext4u.com";
+}
+
+const PRODUCTION_URL = getProductionOrigin();
 
 function isAllowedHostname(host: string): boolean {
-  return ALLOWED_HOSTNAMES.includes(host);
+  return STATIC_ALLOWED_HOSTNAMES.has(host);
 }
-const PRODUCTION_URL = "https://planext4u.lovable.app";
 
 function getAuthorizedFirebaseUrl(): string {
   return `${PRODUCTION_URL}${window.location.pathname}${window.location.search}${window.location.hash}`;
