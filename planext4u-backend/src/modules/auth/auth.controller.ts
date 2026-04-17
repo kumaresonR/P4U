@@ -3,6 +3,15 @@ import * as authService from './auth.service';
 import { sendSuccess, sendCreated } from '../../utils/response';
 import { AuthRequest } from '../../types';
 
+export const checkOtpAccount = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { mobile } = req.body;
+    const portal = (req.query.portal as string) || 'customer';
+    const result = await authService.checkOtpAccountExists(mobile, portal);
+    sendSuccess(res, result);
+  } catch (err) { next(err); }
+};
+
 export const verifyFirebaseOtp = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { firebase_token, name, referral_code } = req.body;

@@ -7,6 +7,11 @@ export const verifyFirebaseOtpSchema = z.object({
   referral_code: z.string().optional(),
 });
 
+// Pre-check before Firebase OTP send: does a customer/vendor exist for this number?
+export const checkOtpAccountSchema = z.object({
+  mobile: z.string().min(8).max(20),
+});
+
 export const emailLoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),

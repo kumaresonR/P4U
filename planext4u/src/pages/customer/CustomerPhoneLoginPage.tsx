@@ -42,6 +42,18 @@ export default function CustomerPhoneLoginPage() {
     if (!ensureFirebaseHostname()) return;
     setLoading(true);
     try {
+      // Pre-check: abort before Firebase sends OTP if number isn't registered.
+      const check: any = await api.post(
+        '/auth/otp/check-exists?portal=customer',
+        { mobile: `${countryCode}${cleaned}` },
+        { auth: false }
+      );
+      if (!check?.exists) {
+        toast.error("This number is not registered. Please register first.");
+        setLoading(false);
+        navigate('/app/register');
+        return;
+      }
       await sendOTP(`${countryCode}${cleaned}`);
       setOtpSent(true);
       setTimer(30);

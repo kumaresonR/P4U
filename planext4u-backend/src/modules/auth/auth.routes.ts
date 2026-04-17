@@ -4,7 +4,7 @@ import { validate } from '../../middleware/validate';
 import { authenticate } from '../../middleware/auth';
 import { authLimiter, otpLimiter } from '../../middleware/rateLimiter';
 import {
-  verifyFirebaseOtpSchema, emailLoginSchema, emailRegisterSchema,
+  verifyFirebaseOtpSchema, checkOtpAccountSchema, emailLoginSchema, emailRegisterSchema,
   vendorLoginSchema, adminLoginSchema, refreshTokenSchema,
   forgotPasswordSchema, resetPasswordSchema, fcmTokenSchema, verifyEmailSchema,
 } from './auth.schema';
@@ -12,6 +12,7 @@ import {
 const router = Router();
 
 // Customer Phone OTP (Firebase-based: client sends OTP, gets firebase_token, sends here)
+router.post('/otp/check-exists', authLimiter, validate(checkOtpAccountSchema), ctrl.checkOtpAccount);
 router.post('/otp/verify', otpLimiter, validate(verifyFirebaseOtpSchema), ctrl.verifyFirebaseOtp);
 
 // Customer email/password

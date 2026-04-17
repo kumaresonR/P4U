@@ -49,6 +49,16 @@ export default function VendorLoginPage() {
     if (!ensureFirebaseHostname()) return;
     setLoading(true);
     try {
+      const check: any = await api.post(
+        '/auth/otp/check-exists?portal=vendor',
+        { mobile: `${countryCode}${cleaned}` },
+        { auth: false }
+      );
+      if (!check?.exists) {
+        toast.error("No vendor account found for this number. Please register first.");
+        setLoading(false);
+        return;
+      }
       await sendOTP(`${countryCode}${cleaned}`);
       setOtpSent(true); setTimer(30);
       toast.success("OTP sent successfully!");

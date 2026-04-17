@@ -9,6 +9,31 @@ import { AppError } from '../../middleware/errorHandler';
 import { env } from '../../config/env';
 import crypto from 'crypto';
 
+// ─── OTP pre-check: is this phone registered? ────────────────────────────────
+// Called by the client BEFORE Firebase sendOTP so unregistered users get a
+// "please register first" message instead of a wasted OTP SMS.
+
+export const checkOtpAccountExists = async (mobile: string, portal: string) => {
+  const digits = mobile.replace(/\D/g, '');
+  const last10 = digits.slice(-10);
+  const normalized = last10;
+  const withPlus = digits.length > 10 ? `+${digits}` : `+91${last10}`;
+
+  if (portal === 'vendor') {
+    const vendor = await prisma.vendor.findFirst({
+      where: { OR: [{ mobile: normalized }, { mobile: withPlus }, { mobile: digits }] },
+      select: { id: true, status: true },
+    });
+    return { exists: !!vendor, status: vendor?.status ?? null };
+  }
+
+  const customer = await prisma.customer.findFirst({
+    where: { OR: [{ mobile: normalized }, { mobile: withPlus }, { mobile: digits }] },
+    select: { id: true, status: true },
+  });
+  return { exists: !!customer, status: customer?.status ?? null };
+};
+
 // ─── Firebase Phone OTP Auth ──────────────────────────────────────────────────
 // The client uses Firebase SDK to:
 //  1. Send OTP to phone (handled fully by Firebase on the client)
@@ -40,69 +65,14 @@ export const verifyFirebaseOtp = async (
     return { vendor: safeVendor, ...tokens };
   }
 
-  // ── Customer portal OTP login / auto-register ─────────────────────────────
-  let customer = await prisma.customer.findFirst({
+  // ── Customer portal OTP login (registered-only) ───────────────────────────
+  const customer = await prisma.customer.findFirst({
     where: { OR: [{ mobile }, { mobile: phone }] },
   });
 
   if (!customer) {
-    const refCode = await generateReferralCode();
-    customer = await prisma.customer.create({
-      data: {
-        name: name || 'User',
-        mobile,
-        referral_code: refCode,
-        referred_by: referralCode || null,
-        wallet_points: env.WELCOME_BONUS_POINTS,
-      },
-    });
-
-    if (referralCode) {
-      const referrer = await prisma.customer.findFirst({ where: { referral_code: referralCode } });
-      if (referrer) {
-        await prisma.$transaction([
-          prisma.customer.update({
-            where: { id: referrer.id },
-            data: { wallet_points: { increment: env.REFERRAL_BONUS_POINTS } },
-          }),
-          prisma.referral.create({
-            data: {
-              referrer_id: referrer.id,
-              referee_id: customer.id,
-              status: 'completed',
-              points_awarded: env.REFERRAL_BONUS_POINTS,
-            },
-          }),
-          prisma.pointsTransaction.create({
-            data: {
-              user_id: referrer.id,
-              type: 'referral',
-              points: env.REFERRAL_BONUS_POINTS,
-              description: `Referral bonus for ${customer.name}`,
-            },
-          }),
-          prisma.pointsTransaction.create({
-            data: {
-              user_id: customer.id,
-              type: 'welcome',
-              points: env.WELCOME_BONUS_POINTS,
-              description: 'Welcome bonus',
-            },
-          }),
-        ]);
-      }
-    } else {
-      await prisma.pointsTransaction.create({
-        data: {
-          user_id: customer.id,
-          type: 'welcome',
-          points: env.WELCOME_BONUS_POINTS,
-          description: 'Welcome bonus',
-        },
-      });
-    }
+    throw new AppError('No account found for this phone number. Please register first.', 404);
   }
-
   if (customer.status !== 'active') throw new AppError('Account suspended', 403);
 
   const tokens = generateTokenPair({ id: customer.id, role: 'customer', mobile });
