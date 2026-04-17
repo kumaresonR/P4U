@@ -1,22 +1,55 @@
-import { Storage } from '@google-cloud/storage';
+/**
+ * Object storage via Backblaze B2 (S3-compatible API).
+ * Secrets: B2_APPLICATION_KEY_ID, B2_APPLICATION_KEY, B2_PUBLIC_URL_BASE in .env only.
+ * Defaults: see ../config/b2-defaults.ts
+ */
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from '../config/env';
 
-const storage = new Storage({
-  projectId: env.GCS_PROJECT_ID || env.FIREBASE_PROJECT_ID,
-  credentials: {
-    client_email: env.FIREBASE_CLIENT_EMAIL,
-    private_key: env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  },
-});
+function b2ConfigError(): string {
+  return (
+    'Backblaze B2 is not configured. Set B2_APPLICATION_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET, ' +
+    'B2_S3_ENDPOINT, and B2_PUBLIC_URL_BASE in .env (see .env.example).'
+  );
+}
 
-const BUCKET = env.GCS_BUCKET || '';
-const bucket = storage.bucket(BUCKET);
+function getS3Client(): S3Client {
+  const { B2_APPLICATION_KEY_ID, B2_APPLICATION_KEY, B2_S3_ENDPOINT } = env;
+  if (!B2_APPLICATION_KEY_ID || !B2_APPLICATION_KEY || !B2_S3_ENDPOINT) {
+    throw new Error(b2ConfigError());
+  }
+  const region =
+    env.B2_REGION ||
+    B2_S3_ENDPOINT.match(/s3\.([^.]+)\.backblazeb2\.com/)?.[1] ||
+    'us-east-1';
+
+  return new S3Client({
+    region,
+    endpoint: B2_S3_ENDPOINT,
+    credentials: {
+      accessKeyId: B2_APPLICATION_KEY_ID,
+      secretAccessKey: B2_APPLICATION_KEY,
+    },
+    forcePathStyle: true,
+  });
+}
+
+function publicUrl(key: string): string {
+  const base = env.B2_PUBLIC_URL_BASE?.replace(/\/$/, '');
+  if (!base) throw new Error(b2ConfigError());
+  return `${base}/${key}`;
+}
+
+const getBucket = (): string => {
+  if (!env.B2_BUCKET) throw new Error(b2ConfigError());
+  return env.B2_BUCKET;
+};
 
 export const uploadImage = async (
   buffer: Buffer,
-  mimetype: string,
+  _mimetype: string,
   folder = 'uploads'
 ): Promise<string> => {
   const compressed = await sharp(buffer)
@@ -25,12 +58,17 @@ export const uploadImage = async (
     .toBuffer();
 
   const key = `${folder}/${uuidv4()}.jpg`;
-  const file = bucket.file(key);
-  await file.save(compressed, {
-    contentType: 'image/jpeg',
-    metadata: { cacheControl: 'public, max-age=31536000' },
-  });
-  return `https://storage.googleapis.com/${BUCKET}/${key}`;
+  const client = getS3Client();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+      Body: compressed,
+      ContentType: 'image/jpeg',
+      CacheControl: 'public, max-age=31536000',
+    })
+  );
+  return publicUrl(key);
 };
 
 export const uploadFile = async (
@@ -41,17 +79,28 @@ export const uploadFile = async (
 ): Promise<{ url: string; key: string }> => {
   const ext = originalName.split('.').pop();
   const key = `${folder}/${uuidv4()}.${ext}`;
-  const file = bucket.file(key);
-  await file.save(buffer, {
-    contentType: mimetype,
-    metadata: { cacheControl: 'public, max-age=31536000' },
-  });
+  const client = getS3Client();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+      Body: buffer,
+      ContentType: mimetype,
+      CacheControl: 'public, max-age=31536000',
+    })
+  );
   return {
-    url: `https://storage.googleapis.com/${BUCKET}/${key}`,
+    url: publicUrl(key),
     key,
   };
 };
 
 export const deleteFile = async (key: string): Promise<void> => {
-  await bucket.file(key).delete({ ignoreNotFound: true });
+  const client = getS3Client();
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+    })
+  );
 };

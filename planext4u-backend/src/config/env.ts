@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import dotenv from 'dotenv';
+import { DEFAULT_B2_BUCKET, DEFAULT_B2_REGION, DEFAULT_B2_S3_ENDPOINT } from './b2-defaults';
 
 dotenv.config();
 
@@ -34,9 +35,16 @@ const envSchema = z.object({
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
 
-  // Google Cloud Storage
-  GCS_PROJECT_ID: z.string().optional(),
-  GCS_BUCKET: z.string().optional(),
+  // Backblaze B2 (S3-compatible API) — see https://www.backblaze.com/docs/cloud-storage/s3-compatible-api
+  B2_APPLICATION_KEY_ID: z.string().optional(),
+  B2_APPLICATION_KEY: z.string().optional(),
+  B2_BUCKET: z.string().optional(),
+  /** e.g. https://s3.us-west-004.backblazeb2.com (from B2 bucket S3-compatible endpoint) */
+  B2_S3_ENDPOINT: z.string().optional(),
+  /** Public file base: https://f003.backblazeb2.com/file/your-bucket-name (no trailing slash) */
+  B2_PUBLIC_URL_BASE: z.string().optional(),
+  /** Must match the S3 endpoint region segment, e.g. us-west-004 — or omit and it is parsed from B2_S3_ENDPOINT */
+  B2_REGION: z.string().optional(),
 
   // Google Maps
   GOOGLE_MAPS_API_KEY: z.string().optional(),
@@ -67,4 +75,8 @@ export const env = {
   CORS_ORIGINS: parsed.data.FRONTEND_URLS.split(',').map((u) => u.trim()),
   IS_PROD: parsed.data.NODE_ENV === 'production',
   IS_DEV: parsed.data.NODE_ENV === 'development',
+  // B2: bucket / endpoint / region are safe to default in repo; keys + public URL base stay in .env only
+  B2_BUCKET: parsed.data.B2_BUCKET || DEFAULT_B2_BUCKET,
+  B2_S3_ENDPOINT: parsed.data.B2_S3_ENDPOINT || DEFAULT_B2_S3_ENDPOINT,
+  B2_REGION: parsed.data.B2_REGION || DEFAULT_B2_REGION,
 };
