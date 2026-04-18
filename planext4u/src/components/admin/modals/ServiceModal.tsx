@@ -196,11 +196,11 @@ export function ServiceModal({ service, open, onOpenChange, mode, onSave, onCrea
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label className="text-xs text-muted-foreground">Base Price</Label>
-                {editMode ? <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="mt-1" /> : <p className="text-sm font-bold mt-1">₹{service?.price.toLocaleString()}</p>}
+                {editMode ? <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="mt-1" /> : <p className="text-sm font-bold mt-1">₹{(service?.price ?? 0).toLocaleString()}</p>}
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Tax</Label>
-                {editMode ? <Input type="number" value={form.tax} onChange={(e) => setForm({ ...form, tax: Number(e.target.value) })} className="mt-1" /> : <p className="text-sm font-medium mt-1">₹{service?.tax.toLocaleString()}</p>}
+                {editMode ? <Input type="number" value={form.tax} onChange={(e) => setForm({ ...form, tax: Number(e.target.value) })} className="mt-1" /> : <p className="text-sm font-medium mt-1">₹{(service?.tax ?? 0).toLocaleString()}</p>}
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Discount</Label>

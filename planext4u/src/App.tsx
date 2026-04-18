@@ -230,6 +230,7 @@ const AppRoutes = () => {
 
   return (
     <FTUXFlow userId={customerUser?.id}>
+      <RouteErrorBoundary>
       <Routes>
         {/* Redirect root based on app identity */}
         <Route path="/" element={<Navigate to={rootRedirect} replace />} />
@@ -372,6 +373,7 @@ const AppRoutes = () => {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </RouteErrorBoundary>
     </FTUXFlow>
   );
 };
@@ -383,9 +385,9 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <RouteErrorBoundary>
+          <ErrorBoundary>
             <AppRoutes />
-          </RouteErrorBoundary>
+          </ErrorBoundary>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

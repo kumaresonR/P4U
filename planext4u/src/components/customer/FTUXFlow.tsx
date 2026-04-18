@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { SplashScreen } from "./SplashScreen";
 import { OnboardingCarousel } from "./OnboardingCarousel";
 import { PermissionScreen } from "./PermissionScreen";
@@ -35,11 +36,20 @@ interface FTUXFlowProps {
   userId?: string;
 }
 
+// Paths that should skip the FTUX splash/onboarding (admin, vendor portals, auth pages)
+const shouldSkipFTUX = (pathname: string): boolean => {
+  if (pathname.startsWith("/app") || pathname === "/auth/callback") return false;
+  return true;
+};
+
 export function FTUXFlow({ children, userId }: FTUXFlowProps) {
-  const [step, setStep] = useState<FTUXStep>("splash");
+  const location = useLocation();
+  const skipFTUX = shouldSkipFTUX(location.pathname);
+  const [step, setStep] = useState<FTUXStep>(skipFTUX ? "done" : "splash");
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
+    if (skipFTUX) return;
     const checkOnboarding = async () => {
       const deviceId = await getNativeDeviceId();
 
@@ -68,7 +78,7 @@ export function FTUXFlow({ children, userId }: FTUXFlowProps) {
       }
     };
     checkOnboarding();
-  }, [userId]);
+  }, [userId, skipFTUX]);
 
   const handleSplashComplete = useCallback(() => {
     if (needsOnboarding) {

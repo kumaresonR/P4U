@@ -40,11 +40,15 @@ export const errorHandler = (
 
   // Prisma errors
   if (err.constructor.name === 'PrismaClientValidationError') {
-    return res.status(400).json({ success: false, error: 'Invalid request data' });
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid request data',
+      ...(env.IS_DEV ? { details: err.message } : {}),
+    });
   }
 
   if (err.constructor.name === 'PrismaClientKnownRequestError') {
-    const prismaErr = err as unknown as { code: string; meta?: { target?: string[] } };
+    const prismaErr = err as unknown as { code: string; meta?: { target?: string[]; field_name?: string; cause?: string } };
     if (prismaErr.code === 'P2002') {
       return res.status(409).json({
         success: false,
@@ -54,11 +58,23 @@ export const errorHandler = (
     if (prismaErr.code === 'P2025') {
       return res.status(404).json({ success: false, error: 'Record not found' });
     }
+    if (prismaErr.code === 'P2003') {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid reference: ${prismaErr.meta?.field_name || 'foreign key'} does not exist`,
+      });
+    }
+    // Surface any other known Prisma error
+    return res.status(400).json({
+      success: false,
+      error: `Database error (${prismaErr.code})`,
+      ...(env.IS_DEV ? { details: err.message } : {}),
+    });
   }
 
   return res.status(500).json({
     success: false,
-    error: 'Internal server error',
+    error: env.IS_DEV ? err.message || 'Internal server error' : 'Internal server error',
     ...(env.IS_DEV ? { stack: err.stack } : {}),
   });
 };

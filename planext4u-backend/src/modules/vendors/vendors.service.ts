@@ -3,8 +3,25 @@ import { hashPassword } from '../../utils/password';
 import { AppError } from '../../middleware/errorHandler';
 import { getPagination } from '../../utils/pagination';
 import { sendVendorApproval } from '../../services/email';
-import { nullifyEmptyStrings, validateFks } from '../../utils/sanitize';
+import { nullifyEmptyStrings, validateFks, pick } from '../../utils/sanitize';
 import { Request } from 'express';
+
+// Fields that map to actual Vendor columns (keeps Prisma from rejecting unknown input)
+const VENDOR_FIELDS = [
+  'name', 'business_name', 'email', 'mobile', 'avatar',
+  'category_id', 'plan_id', 'city_id', 'area_id', 'address',
+  'latitude', 'longitude', 'commission_rate', 'gst_number',
+  'pan_number', 'kyc_status', 'status', 'rejection_reason',
+  'membership', 'plan_payment_status', 'plan_transaction_id',
+  'shop_photo_url', 'fcm_tokens',
+];
+
+const SERVICE_VENDOR_FIELDS = [
+  'name', 'business_name', 'email', 'mobile', 'avatar',
+  'category_id', 'plan_id', 'city_id', 'area_id', 'address',
+  'service_area', 'latitude', 'longitude', 'commission_rate',
+  'gst_number', 'pan_number', 'status', 'fcm_tokens',
+];
 
 const vendorSelect = {
   id: true, name: true, business_name: true, email: true, mobile: true,
@@ -45,13 +62,18 @@ export const getVendor = async (id: string) => {
 };
 
 export const registerVendor = async (data: any) => {
+  if (!data?.email || !data?.mobile) throw new AppError('Email and mobile are required', 400);
+
   const exists = await prisma.vendor.findFirst({ where: { OR: [{ email: data.email }, { mobile: data.mobile }] } });
-  if (exists) throw new AppError('Email or mobile already registered', 409);
+  if (exists) {
+    const field = exists.email === data.email ? 'Email' : 'Mobile';
+    throw new AppError(`${field} already registered`, 409);
+  }
 
   const plainPassword = data.password || Math.random().toString(36).slice(-10) + 'P4u!';
-  const { password: _pw, ...rest } = data;
 
-  let clean = nullifyEmptyStrings(rest, ['category_id', 'plan_id', 'city_id', 'area_id']);
+  let clean = pick(data, VENDOR_FIELDS);
+  clean = nullifyEmptyStrings(clean, ['category_id', 'plan_id', 'city_id', 'area_id']);
   clean = await validateFks(clean, {
     category_id: 'category',
     city_id: 'city',
@@ -60,12 +82,13 @@ export const registerVendor = async (data: any) => {
   });
 
   return prisma.vendor.create({
-    data: { ...clean, password_hash: await hashPassword(plainPassword) },
+    data: { ...clean, password_hash: await hashPassword(plainPassword) } as any,
   });
 };
 
 export const updateVendor = async (id: string, data: any) => {
-  let clean = nullifyEmptyStrings(data, ['category_id', 'plan_id', 'city_id', 'area_id']);
+  let clean = pick(data, VENDOR_FIELDS);
+  clean = nullifyEmptyStrings(clean, ['category_id', 'plan_id', 'city_id', 'area_id']);
   clean = await validateFks(clean, {
     category_id: 'category',
     city_id: 'city',
@@ -137,13 +160,18 @@ export const getServiceVendor = async (id: string) => {
 };
 
 export const registerServiceVendor = async (data: any) => {
+  if (!data?.email || !data?.mobile) throw new AppError('Email and mobile are required', 400);
+
   const exists = await prisma.serviceVendor.findFirst({ where: { OR: [{ email: data.email }, { mobile: data.mobile }] } });
-  if (exists) throw new AppError('Email or mobile already registered', 409);
+  if (exists) {
+    const field = exists.email === data.email ? 'Email' : 'Mobile';
+    throw new AppError(`${field} already registered`, 409);
+  }
 
   const plainPassword = data.password || Math.random().toString(36).slice(-10) + 'P4u!';
-  const { password: _pw, ...rest } = data;
 
-  let clean = nullifyEmptyStrings(rest, ['category_id', 'city_id', 'area_id']);
+  let clean = pick(data, SERVICE_VENDOR_FIELDS);
+  clean = nullifyEmptyStrings(clean, ['category_id', 'city_id', 'area_id']);
   clean = await validateFks(clean, {
     category_id: 'serviceCategory',
     city_id: 'city',
@@ -151,12 +179,13 @@ export const registerServiceVendor = async (data: any) => {
   });
 
   return prisma.serviceVendor.create({
-    data: { ...clean, password_hash: await hashPassword(plainPassword) },
+    data: { ...clean, password_hash: await hashPassword(plainPassword) } as any,
   });
 };
 
 export const updateServiceVendor = async (id: string, data: any) => {
-  let clean = nullifyEmptyStrings(data, ['category_id', 'city_id', 'area_id']);
+  let clean = pick(data, SERVICE_VENDOR_FIELDS);
+  clean = nullifyEmptyStrings(clean, ['category_id', 'city_id', 'area_id']);
   clean = await validateFks(clean, {
     category_id: 'serviceCategory',
     city_id: 'city',
