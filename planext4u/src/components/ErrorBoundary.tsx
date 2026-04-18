@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 
 interface Props {
   children: ReactNode;
+  /** When this value changes (e.g. route path), clear error UI without remounting the whole app. */
+  resetOnPathChange?: string;
 }
 
 interface State {
@@ -20,6 +22,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    if (
+      this.props.resetOnPathChange !== undefined &&
+      prevProps.resetOnPathChange !== this.props.resetOnPathChange &&
+      this.state.hasError
+    ) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -65,5 +77,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
 export function RouteErrorBoundary({ children }: { children: ReactNode }) {
   const location = useLocation();
-  return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
+  return (
+    <ErrorBoundary resetOnPathChange={location.pathname}>{children}</ErrorBoundary>
+  );
 }

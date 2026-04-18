@@ -48,6 +48,12 @@ export function FTUXFlow({ children, userId }: FTUXFlowProps) {
   const [step, setStep] = useState<FTUXStep>(skipFTUX ? "done" : "splash");
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
+  // Admin / vendor / login routes must never sit behind the customer splash. Also fixes SPA
+  // navigations from /app → admin where step would otherwise stay on "splash" until the timer ends.
+  useEffect(() => {
+    if (skipFTUX) setStep("done");
+  }, [skipFTUX]);
+
   useEffect(() => {
     if (skipFTUX) return;
     const checkOnboarding = async () => {

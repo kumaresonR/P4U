@@ -64,6 +64,23 @@ export const errorHandler = (
         error: `Invalid reference: ${prismaErr.meta?.field_name || 'foreign key'} does not exist`,
       });
     }
+    if (prismaErr.code === 'P2022') {
+      const meta = prismaErr.meta as Record<string, unknown> | undefined;
+      const rawCol = meta?.column;
+      const col =
+        typeof rawCol === 'string'
+          ? rawCol
+          : rawCol && typeof rawCol === 'object' && rawCol !== null && 'name' in rawCol
+            ? String((rawCol as { name: string }).name)
+            : undefined;
+      return res.status(500).json({
+        success: false,
+        error: col
+          ? `Database is missing column "${col}". Run migrations: npx prisma migrate deploy`
+          : 'Database schema is out of date. Run migrations: npx prisma migrate deploy',
+        ...(env.IS_DEV ? { details: err.message } : {}),
+      });
+    }
     // Surface any other known Prisma error
     return res.status(400).json({
       success: false,

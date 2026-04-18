@@ -103,6 +103,8 @@ export function MediaLibraryPicker({
         onOpenChange={setOpen}
         onSelect={(url) => { onChange(url); setOpen(false); }}
         defaultFolder={folder}
+        apiMode={apiMode}
+        vendorId={vendorId}
       />
     </div>
   );
@@ -113,9 +115,18 @@ interface MediaLibraryDialogProps {
   onOpenChange: (open: boolean) => void;
   onSelect: (url: string) => void;
   defaultFolder?: string;
+  apiMode?: "admin" | "vendor";
+  vendorId?: string;
 }
 
-export function MediaLibraryDialog({ open, onOpenChange, onSelect, defaultFolder = "general" }: MediaLibraryDialogProps) {
+export function MediaLibraryDialog({
+  open,
+  onOpenChange,
+  onSelect,
+  defaultFolder = "general",
+  apiMode = "admin",
+  vendorId,
+}: MediaLibraryDialogProps) {
   const [tab, setTab] = useState<"library" | "upload">("library");
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
