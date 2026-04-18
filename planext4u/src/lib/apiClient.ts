@@ -44,11 +44,9 @@ async function refreshAccessToken(): Promise<string | null> {
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
-    // Only force-logout when the refresh token itself is rejected (401/403).
-    // Network blips, 5xx, or parse errors must NOT clear the session.
+    // Refresh rejected: drop just the access token so the next call retries refresh,
+    // but KEEP the user logged in UI-side. Only explicit logout clears the session.
     if (res.status === 401 || res.status === 403) {
-      tokenStore.clear();
-      window.dispatchEvent(new Event('p4u:logout'));
       refreshQueue.forEach((cb) => cb(''));
       refreshQueue = [];
       return null;

@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { tokenStore } from "@/lib/apiClient";
 
 export function VendorProtectedRoute({ children }: { children: React.ReactNode }) {
   const { vendorUser, isLoading } = useAuth();
@@ -13,6 +14,14 @@ export function VendorProtectedRoute({ children }: { children: React.ReactNode }
   }
 
   if (!vendorUser) {
+    const savedRaw = localStorage.getItem('p4u_user');
+    const hasToken = !!tokenStore.getAccess() || !!tokenStore.getRefresh();
+    if (savedRaw && hasToken) {
+      try {
+        const saved = JSON.parse(savedRaw);
+        if (saved?.portal === 'vendor') return <>{children}</>;
+      } catch { /* ignore */ }
+    }
     return <Navigate to="/vendor/login" replace />;
   }
 

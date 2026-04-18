@@ -52,15 +52,26 @@ export default function CustomerCartPage() {
   const [referralCountThisMonth, setReferralCountThisMonth] = useState(0);
 
   useEffect(() => {
-    Promise.all([api.getCart(), api.getCustomerProfile(customerId), loadAddresses(), loadPlatformFees()]).then(([cartItems, profile]) => {
-      setCart(cartItems);
-      setWalletPoints(profile?.wallet_points || 0);
-      try {
-        const saved = JSON.parse(localStorage.getItem('app_db_saved_for_later') || '[]');
-        setSavedForLater(saved);
-      } catch {}
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    // Load cart first — it's synchronous from localStorage and must never be blocked by a failing API call
+    api.getCart()
+      .then((cartItems) => setCart(cartItems))
+      .catch(() => setCart([]))
+      .finally(() => setLoading(false));
+
+    try {
+      const saved = JSON.parse(localStorage.getItem('app_db_saved_for_later') || '[]');
+      setSavedForLater(saved);
+    } catch {}
+
+    // These are independent — failing one shouldn't affect the cart view
+    api.getCustomerProfile(customerId).then((profile: any) => setWalletPoints(profile?.wallet_points || 0)).catch(() => {});
+    loadAddresses().catch(() => {});
+    loadPlatformFees().catch(() => {});
+
+    // Refresh cart when other tabs/components update it
+    const onCartUpdate = () => { api.getCart().then(setCart).catch(() => {}); };
+    window.addEventListener('p4u:cart-updated', onCartUpdate);
+    return () => window.removeEventListener('p4u:cart-updated', onCartUpdate);
   }, [customerId]);
 
   const loadPlatformFees = async () => {
