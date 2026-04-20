@@ -12,6 +12,10 @@ import authPublicRoutes from './routes/auth-public.routes';
 
 const app = express();
 
+// ─── Proxy (nginx in front) ──────────────────────────────────────────────────
+// Trust the first proxy so req.ip + X-Forwarded-For work correctly for rate limiting.
+app.set('trust proxy', 1);
+
 // ─── Security ────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
