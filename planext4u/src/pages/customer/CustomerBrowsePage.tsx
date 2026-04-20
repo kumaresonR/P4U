@@ -75,6 +75,16 @@ export default function CustomerBrowsePage() {
   useEffect(() => {
     api.getCart().then(items => setCartCount(items.reduce((s, i) => s + i.qty, 0)));
     try { setWishlist(JSON.parse(localStorage.getItem('app_db_wishlist') || '[]')); } catch { setWishlist([]); }
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'app_db_wishlist') {
+        try { setWishlist(JSON.parse(e.newValue || '[]')); } catch { setWishlist([]); }
+      }
+      if (e.key && e.key.startsWith('p4u_cart')) {
+        api.getCart().then(items => setCartCount(items.reduce((s, i) => s + i.qty, 0))).catch(() => {});
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const checkScroll = () => {

@@ -162,7 +162,7 @@ export default function CustomerRegisterPage() {
 
   const validateForm = (): boolean => {
     if (!form.name.trim()) { toast.error("Name is required"); return false; }
-    if (!form.mobile || !/^\d{10}$/.test(form.mobile)) { toast.error("Enter a valid 10-digit mobile number"); return false; }
+    if (!form.mobile || !/^\d{10}$/.test(form.mobile.replace(/^\+?91/, '').replace(/\D/g, ''))) { toast.error("Enter a valid 10-digit mobile number"); return false; }
     if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { toast.error("Enter a valid email address"); return false; }
     if (!form.state) { toast.error("Please select a state"); return false; }
     if (!form.district) { toast.error("Please select a district"); return false; }

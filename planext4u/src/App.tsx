@@ -168,6 +168,15 @@ const AppRoutes = () => {
   const [appIdReady, setAppIdReady] = useState(!isNativePlatform());
   usePushNotifications();
 
+  // Surface localStorage quota errors (e.g., cart saves failing silently)
+  useEffect(() => {
+    const onStorageError = () => {
+      toast.error("Storage is full. Your cart or preferences could not be saved. Please clear some browser data.");
+    };
+    window.addEventListener('p4u:storage-error', onStorageError);
+    return () => window.removeEventListener('p4u:storage-error', onStorageError);
+  }, []);
+
   // Detect native app identity on mount
   useEffect(() => {
     if (!isNativePlatform()) return;

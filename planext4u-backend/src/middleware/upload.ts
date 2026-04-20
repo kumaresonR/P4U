@@ -25,7 +25,13 @@ export const uploadVideo = multer({
   fileFilter: fileFilter(UPLOAD.ALLOWED_VIDEO_TYPES),
 });
 
+const ALLOWED_ANY_TYPES = [
+  ...UPLOAD.ALLOWED_IMAGE_TYPES,
+  ...UPLOAD.ALLOWED_VIDEO_TYPES,
+  'application/pdf',
+];
 export const uploadAny = multer({
   storage,
   limits: { fileSize: UPLOAD.MAX_VIDEO_SIZE },
+  fileFilter: fileFilter(ALLOWED_ANY_TYPES),
 });

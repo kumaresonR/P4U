@@ -90,6 +90,16 @@ export const registerCustomer = async (data: {
   });
   if (exists) throw new AppError('Email or mobile already registered', 409);
 
+  let referredBy: string | null = null;
+  if (data.referral_code) {
+    const referrer = await prisma.customer.findFirst({
+      where: { referral_code: data.referral_code },
+      select: { id: true },
+    });
+    if (!referrer) throw new AppError('Invalid referral code', 400);
+    referredBy = data.referral_code;
+  }
+
   const refCode = await generateReferralCode();
   const customer = await prisma.customer.create({
     data: {
@@ -98,7 +108,7 @@ export const registerCustomer = async (data: {
       mobile: data.mobile,
       password_hash: await hashPassword(data.password),
       referral_code: refCode,
-      referred_by: data.referral_code || null,
+      referred_by: referredBy,
       wallet_points: env.WELCOME_BONUS_POINTS,
       email_verified: false,
     },

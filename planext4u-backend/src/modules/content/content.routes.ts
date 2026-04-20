@@ -124,7 +124,9 @@ router.get('/service-highlights', async (_req: Request, res: Response, next: Nex
 
 router.post('/newsletter/subscribe', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await adminSvc.subscribeEmail(req.body.email, 'website');
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new AppError('A valid email is required', 400);
+    await adminSvc.subscribeEmail(email, 'website');
     sendSuccess(res, null, 'Subscribed successfully');
   } catch (e) { next(e); }
 });

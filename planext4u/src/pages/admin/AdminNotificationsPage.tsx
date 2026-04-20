@@ -49,10 +49,11 @@ export default function AdminNotificationsPage() {
 
       const sent = result?.sent || 0;
       toast.success(`Notification sent to ${sent} device(s)`);
+      const HISTORY_LIMIT = 50;
       setHistory((prev) => [
         { title, body, target: targetType, sent, time: new Date().toLocaleString() },
         ...prev,
-      ]);
+      ].slice(0, HISTORY_LIMIT));
       setTitle("");
       setBody("");
       setDeepLink("");

@@ -70,8 +70,21 @@ export default function CustomerCartPage() {
 
     // Refresh cart when other tabs/components update it
     const onCartUpdate = () => { api.getCart().then(setCart).catch(() => {}); };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key && (e.key.startsWith('p4u_cart') || e.key === 'app_db_saved_for_later')) {
+        api.getCart().then(setCart).catch(() => {});
+        try {
+          const saved = JSON.parse(localStorage.getItem('app_db_saved_for_later') || '[]');
+          setSavedForLater(saved);
+        } catch {}
+      }
+    };
     window.addEventListener('p4u:cart-updated', onCartUpdate);
-    return () => window.removeEventListener('p4u:cart-updated', onCartUpdate);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('p4u:cart-updated', onCartUpdate);
+      window.removeEventListener('storage', onStorage);
+    };
   }, [customerId]);
 
   const loadPlatformFees = async () => {

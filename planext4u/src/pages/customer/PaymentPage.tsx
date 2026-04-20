@@ -96,7 +96,11 @@ export default function PaymentPage() {
 
     try {
       const loaded = await loadRazorpayScript();
-      if (!loaded) { toast.error("Failed to load payment gateway"); setPaymentState('select'); return; }
+      if (!loaded) {
+        toast.error("Couldn't reach the payment gateway. Check your internet connection and try again.");
+        setPaymentState('select');
+        return;
+      }
 
       // Step 1: Ask backend to create a Razorpay order
       const data = await http.post<any>('/payments/create-order', { amount: total, currency: "INR" });

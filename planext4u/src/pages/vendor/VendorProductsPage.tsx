@@ -87,27 +87,44 @@ export default function VendorProductsPage() {
         return;
       }
       const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      const requiredCols = ["title", "price"];
+      const missing = requiredCols.filter((c) => !headers.includes(c) && !(c === "title" && headers.includes("name")));
+      if (missing.length > 0) {
+        toast.error(`CSV is missing required column(s): ${missing.join(", ")}. Expected columns: title, description, price, tax, discount, stock, emoji, image.`);
+        return;
+      }
       let count = 0;
+      const errors: string[] = [];
       for (let i = 1; i < lines.length; i++) {
         const vals = lines[i].split(",").map((v) => v.trim());
         const row: Record<string, string> = {};
         headers.forEach((h, j) => {
           row[h] = vals[j] || "";
         });
-        await http.post("/products/vendor/my", {
-          title: row.title || row.name || `Product ${i}`,
-          description: row.description || "",
-          price: parseFloat(row.price) || 0,
-          tax: parseFloat(row.tax) || 0,
-          discount: parseFloat(row.discount) || 0,
-          stock: parseInt(row.stock, 10) || 0,
-          status: "draft",
-          emoji: row.emoji || "📦",
-          image: row.image || null,
-        });
-        count++;
+        const price = parseFloat(row.price);
+        if (!row.title && !row.name) { errors.push(`Row ${i + 1}: missing title`); continue; }
+        if (isNaN(price) || price < 0) { errors.push(`Row ${i + 1}: invalid price`); continue; }
+        try {
+          await http.post("/products/vendor/my", {
+            title: row.title || row.name || `Product ${i}`,
+            description: row.description || "",
+            price,
+            tax: parseFloat(row.tax) || 0,
+            discount: parseFloat(row.discount) || 0,
+            stock: parseInt(row.stock, 10) || 0,
+            status: "draft",
+            emoji: row.emoji || "📦",
+            image: row.image || null,
+          });
+          count++;
+        } catch (err: any) {
+          errors.push(`Row ${i + 1}: ${err?.message || "server rejected row"}`);
+        }
       }
-      toast.success(`${count} products imported`);
+      if (count > 0) toast.success(`${count} products imported`);
+      if (errors.length > 0) {
+        toast.error(`${errors.length} row(s) failed. First: ${errors[0]}`, { duration: 8000 });
+      }
       qc.invalidateQueries({ queryKey: ["vendorProducts"] });
       setShowCsvDialog(false);
     };

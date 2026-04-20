@@ -1,7 +1,10 @@
 import { prisma } from '../../config/database';
 import { sendPushToTokens, sendPushToTopic } from '../../services/firebase';
 import { getPagination } from '../../utils/pagination';
+import { AppError } from '../../middleware/errorHandler';
 import { Request } from 'express';
+
+const ALLOWED_BROADCAST_ROLES = ['customer', 'vendor', 'all'] as const;
 
 export const sendToUser = async (customerId: string, title: string, body: string, data?: Record<string, string>) => {
   const customer = await prisma.customer.findUnique({
@@ -20,7 +23,12 @@ export const sendToUser = async (customerId: string, title: string, body: string
 };
 
 export const broadcast = async (title: string, body: string, role?: string) => {
-  const topic = role === 'customer' ? 'customers' : role === 'vendor' ? 'vendors' : 'all';
+  if (!title?.trim() || !body?.trim()) throw new AppError('title and body are required', 400);
+  const resolvedRole = role || 'all';
+  if (!ALLOWED_BROADCAST_ROLES.includes(resolvedRole as typeof ALLOWED_BROADCAST_ROLES[number])) {
+    throw new AppError(`role must be one of: ${ALLOWED_BROADCAST_ROLES.join(', ')}`, 400);
+  }
+  const topic = resolvedRole === 'customer' ? 'customers' : resolvedRole === 'vendor' ? 'vendors' : 'all';
   await sendPushToTopic(topic, { title, body });
 };
 

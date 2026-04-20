@@ -89,9 +89,15 @@ export const placeOrder = async (input: PlaceOrderInput) => {
 
   // Determine vendor_id from first product
   let vendorId: string | undefined;
-  if (input.items[0]?.product_id) {
-    const product = await prisma.product.findUnique({ where: { id: input.items[0].product_id } });
-    vendorId = product?.vendor_id;
+  const firstProductId = input.items[0]?.product_id;
+  if (firstProductId) {
+    const product = await prisma.product.findUnique({ where: { id: firstProductId } });
+    if (!product) throw new AppError('Product not found', 404);
+    vendorId = product.vendor_id ?? undefined;
+  }
+  // Product orders require a vendor; service-only orders may skip it
+  if (firstProductId && !vendorId) {
+    throw new AppError('Cannot place order: product has no associated vendor', 400);
   }
 
   const order = await prisma.$transaction(async (tx) => {
@@ -323,6 +329,12 @@ export const cancelOrder = async (orderId: string, customerId: string) => {
 };
 
 export const rateOrder = async (orderId: string, customerId: string, deliveryRating: number, ratingComment?: string) => {
+  if (!Number.isInteger(deliveryRating) || deliveryRating < 1 || deliveryRating > 5) {
+    throw new AppError('Rating must be an integer between 1 and 5', 400);
+  }
+  if (ratingComment && ratingComment.length > 1000) {
+    throw new AppError('Rating comment must be 1000 characters or less', 400);
+  }
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) throw new AppError('Order not found', 404);
   if (order.customer_id !== customerId) throw new AppError('Not your order', 403);

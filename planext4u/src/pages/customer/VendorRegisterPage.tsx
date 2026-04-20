@@ -50,6 +50,7 @@ export default function VendorRegisterPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [catSearchQuery, setCatSearchQuery] = useState("");
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
 
   const [form, setForm] = useState({
     name: customerUser?.name || '', phone: customerUser?.mobile || '', secondary_phone: '',
@@ -76,13 +77,20 @@ export default function VendorRegisterPage() {
   // Load categories based on vendor type
   useEffect(() => {
     const loadCategories = async () => {
-      if (form.category === 'product' || form.category === 'both') {
-        const cats = await api.getCategories();
-        setProductCategories(cats || []);
-      }
-      if (form.category === 'service' || form.category === 'both') {
-        const cats = await api.getServiceCategories();
-        setServiceCategories(cats || []);
+      setCategoriesLoading(true);
+      try {
+        if (form.category === 'product' || form.category === 'both') {
+          const cats = await api.getCategories();
+          setProductCategories(cats || []);
+        }
+        if (form.category === 'service' || form.category === 'both') {
+          const cats = await api.getServiceCategories();
+          setServiceCategories(cats || []);
+        }
+      } catch (err) {
+        toast.error("Failed to load categories. Please refresh.");
+      } finally {
+        setCategoriesLoading(false);
       }
     };
     loadCategories();
@@ -471,6 +479,12 @@ export default function VendorRegisterPage() {
               {(form.category === 'product' || form.category === 'both') && (
                 <div>
                   <p className="text-xs font-semibold mb-2 text-primary">Product Categories</p>
+                  {categoriesLoading && productCategories.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Loading categories...</p>
+                  )}
+                  {!categoriesLoading && productCategories.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No product categories available.</p>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     {productCategories
                       .filter(c => !c.parent_id && c.status === 'active')
@@ -520,6 +534,12 @@ export default function VendorRegisterPage() {
               {(form.category === 'service' || form.category === 'both') && (
                 <div>
                   <p className="text-xs font-semibold mb-2 text-primary">Service Categories</p>
+                  {categoriesLoading && serviceCategories.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Loading categories...</p>
+                  )}
+                  {!categoriesLoading && serviceCategories.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No service categories available.</p>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     {serviceCategories
                       .filter(c => !c.parent_id && c.status === 'active')

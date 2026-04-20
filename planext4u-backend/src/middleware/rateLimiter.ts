@@ -23,3 +23,11 @@ export const otpLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, error: 'Too many OTP requests, please wait a minute.' },
 });
+
+export const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many webhook requests.' },
+});

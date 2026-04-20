@@ -200,7 +200,15 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
     if (form.status === 'rejected' && !form.rejection_reason?.trim()) return;
     setSaving(true);
     try {
-      const payload = { ...form, tax: taxAmount };
+      const cleanedImages = (form.images || []).filter((u: string) => typeof u === 'string' && u.trim().length > 0);
+      const payload = {
+        ...form,
+        tax: taxAmount,
+        image: form.image?.trim() || cleanedImages[0] || null,
+        images: cleanedImages,
+        thumbnail_image: form.thumbnail_image?.trim() || null,
+        banner_image: form.banner_image?.trim() || null,
+      };
       if (isCreate) {
         await onCreate?.(payload);
       } else if (product) {
@@ -219,7 +227,7 @@ export function ProductModal({ product, open, onOpenChange, mode, onSave, onCrea
               stock_quantity: v.stock_quantity,
               stock_status: v.stock_status,
               variant_attributes: v.variant_attributes,
-              image_url: v.image_url || "",
+              image_url: v.image_url?.trim() || null,
               is_active: v.is_active,
               sort_order: v.sort_order || 0,
             } as any);

@@ -275,7 +275,10 @@ export default function PropertyDetailPage() {
     if (!customerUser) { toast.error("Please login first"); navigate("/app/login"); return; }
     if (!id) return;
     const hm = parse12hTo24h(time);
-    const scheduled_at = new Date(`${date}T${hm}:00`).toISOString();
+    // Build Date in explicit local time (some older engines treat no-offset ISO strings as UTC)
+    const [y, m, d] = date.split('-').map(Number);
+    const [hh, mm] = hm.split(':').map(Number);
+    const scheduled_at = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0).toISOString();
     try {
       await http.post(`/properties/${id}/visit`, { scheduled_at });
     } catch {

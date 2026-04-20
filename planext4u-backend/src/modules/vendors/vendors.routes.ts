@@ -27,7 +27,7 @@ router.put('/service-vendors/me/bank',  authenticate, isServiceVendor, validate(
 router.post('/',                 authenticate, isAdmin, validate(registerVendorSchema), ctrl.register);
 router.get('/',                  authenticate, isAdmin, ctrl.list);
 router.get('/:id',               authenticate, isAdmin, ctrl.get);
-router.put('/:id',               authenticate, isAdmin, ctrl.update);
+router.put('/:id',               authenticate, isAdmin, validate(updateVendorSchema), ctrl.update);
 router.put('/:id/status',        authenticate, isAdmin, validate(updateVendorStatusSchema), ctrl.updateStatus);
 router.delete('/:id',            authenticate, isAdmin, ctrl.remove);
 router.post('/bulk-delete',      authenticate, isAdmin, ctrl.bulkDelete);
@@ -37,7 +37,7 @@ router.get('/:id/dashboard',     authenticate, isAdmin, ctrl.dashboard);
 // Admin — service vendors
 router.get('/service-vendors',          authenticate, isAdmin, ctrl.listSvc);
 router.get('/service-vendors/:id',      authenticate, isAdmin, ctrl.getSvc);
-router.put('/service-vendors/:id',      authenticate, isAdmin, ctrl.updateSvc);
-router.put('/service-vendors/:id/status', authenticate, isAdmin, ctrl.updateSvcStatus);
+router.put('/service-vendors/:id',      authenticate, isAdmin, validate(updateVendorSchema), ctrl.updateSvc);
+router.put('/service-vendors/:id/status', authenticate, isAdmin, validate(updateVendorStatusSchema), ctrl.updateSvcStatus);
 
 export default router;

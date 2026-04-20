@@ -5,6 +5,7 @@ import { prisma } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
 import { isAdmin, isCustomer } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
+import { authLimiter } from '../../middleware/rateLimiter';
 import { uploadAny } from '../../middleware/upload';
 import { uploadFile, deleteFile } from '../../services/storage';
 import { AppError } from '../../middleware/errorHandler';
@@ -74,7 +75,7 @@ router.put('/homes-cms/:id',        authenticate, isAdmin, validate(homesCmsSche
 router.delete('/homes-cms/:id',     authenticate, isAdmin, ctrl.deleteHomesCms);
 
 // Contact / Queries
-router.post('/contact',          validate(websiteQuerySchema), ctrl.submitQuery);
+router.post('/contact',          authLimiter, validate(websiteQuerySchema), ctrl.submitQuery);
 router.get('/queries',           authenticate, isAdmin, ctrl.getQueries);
 router.put('/queries/:id',       authenticate, isAdmin, validate(updateQuerySchema), ctrl.updateQuery);
 
@@ -84,8 +85,8 @@ router.get('/support-tickets',       authenticate, isAdmin,    ctrl.getTickets);
 router.put('/support-tickets/:id',   authenticate, isAdmin,    validate(replyTicketSchema), ctrl.replyTicket);
 
 // Email Subscriptions
-router.post('/subscribe',    validate(emailSubscribeSchema), ctrl.subscribe);
-router.post('/unsubscribe',  ctrl.unsubscribe);
+router.post('/subscribe',    authLimiter, validate(emailSubscribeSchema), ctrl.subscribe);
+router.post('/unsubscribe',  authLimiter, validate(emailSubscribeSchema.pick({ email: true })), ctrl.unsubscribe);
 
 // KYC Management
 router.get('/kyc',           authenticate, isAdmin, ctrl.listKyc);

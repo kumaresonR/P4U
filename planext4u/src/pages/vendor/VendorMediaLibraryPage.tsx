@@ -42,20 +42,34 @@ export default function VendorMediaLibraryPage() {
     if (!files || !vendorId) return;
     setUploading(true);
     const targetFolder = folder === "all" ? "general" : folder;
+    let successCount = 0;
+    let failCount = 0;
     try {
       const token = tokenStore.getAccess();
       for (const file of Array.from(files)) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('folder', `vendor-${vendorId}/${targetFolder}`);
-        const res = await fetch(`${BASE_URL}/vendor/media-library/upload`, {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: formData,
-        });
-        if (!res.ok) { toast.error(`Failed: ${file.name}`); continue; }
+        try {
+          const res = await fetch(`${BASE_URL}/vendor/media-library/upload`, {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData,
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            toast.error(`Failed: ${file.name} — ${data?.message || data?.error || res.statusText}`);
+            failCount++;
+            continue;
+          }
+          successCount++;
+        } catch (err: any) {
+          toast.error(`Network error uploading ${file.name}: ${err?.message || 'unknown'}`);
+          failCount++;
+        }
       }
-      toast.success("Uploaded successfully");
+      if (successCount > 0) toast.success(`${successCount} file(s) uploaded`);
+      if (failCount > 0 && successCount === 0) toast.error("Upload failed");
       qc.invalidateQueries({ queryKey: ["vendorMedia"] });
     } finally { setUploading(false); }
   }, [vendorId, folder, qc]);
